@@ -9,7 +9,7 @@ const String studentId = '2415051056';
 
 Future<Map<String, dynamic>> loadStudentData() async {
 final jsonString = await rootBundle.loadString(
-  'assets/data/student_data_salah.json',
+  'assets/data/student_data.json',
 );
 
   return jsonDecode(jsonString) as Map<String, dynamic>;
