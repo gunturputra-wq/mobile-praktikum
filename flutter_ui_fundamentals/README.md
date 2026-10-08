@@ -1,17 +1,28 @@
-# flutter_ui_fundamentals
+# Aplikasi Praktikum Flutter - Seri Pertemuan 5
+**Responsive Layout, Navigation & User Interaction**
 
-A new Flutter project.
+ Sektor Informasi Mahasiswa:
+- **Nama:** I Ketut Guntur Putra Dangin
+- **NIM:** 2415051056
+- **Prodi:** Pendidikan Teknik Informatika
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## 🚀 Deskripsi Proyek
+Aplikasi ini dikembangkan menggunakan Flutter untuk memenuhi seluruh tugas praktikum (Tahap 1 - 15). Aplikasi mencakup modul responsif layout, navigasi antar-halaman, pengelolaan form/input, umpan balik visual pengguna, hingga unit & widget testing.
 
-A few resources to get you started if this is your first Flutter project:
+## ✨ Fitur Utama
+1. **Responsive Dashboard:** Penggunaan `MediaQuery` dan `LayoutBuilder` untuk menyesuaikan tampilan di layar HP maupun Web/Tablet.
+2. **Navigation & Data Passing:** Perpindahan antar-halaman daftar *course* ke halaman detail dengan membawa data dinamis melalui *constructor*.
+3. **Interactive Form:** Penggunaan `TextFormField`, validasi input, serta kontrol `Slider`.
+4. **Advanced Feedback UI:** Penggunaan `SnackBar`, `AlertDialog` konfirmasi, `BottomSheet`, dan `CircularProgressIndicator` untuk simulasi *loading*.
+5. **Widget Testing:** Pengujian UI otomatis menggunakan `flutter test`.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+---
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 🛠️ Cara Menjalankan Proyek
+
+1. **Clone Repositori:**
+   ```bash
+   git clone [https://github.com/USERNAME/aplikasi_pertama_I_Ketut_Guntur_Putra_Dangin.git](https://github.com/USERNAME/aplikasi_pertama_I_Ketut_Guntur_Putra_Dangin.git)
+   cd aplikasi_pertama_I_Ketut_Guntur_Putra_Dangin/flutter_ui_fundamentals
