@@ -13,174 +13,105 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      home: StageThreePage(),
+      home: StageFourPage(),
     );
   }
 }
 
-class StageThreePage extends StatelessWidget {
-  const StageThreePage({super.key});
+class StageFourPage extends StatelessWidget {
+  const StageFourPage({super.key});
+
+  final List<String> skills = const [
+    'Flutter',
+    'Dart',
+    'Responsive Layout',
+    'Navigation',
+    'State Management',
+    'Git & GitHub',
+    'UI/UX Design',
+    'REST API',
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tahap 3 - LayoutBuilder & Breakpoint'),
+        title: const Text('Tahap 4 - Expanded, Flexible & Wrap'),
       ),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Evaluasi Breakpoint berdasarkan constraints.maxWidth
-            if (constraints.maxWidth < 600) {
-              return CompactLayout(maxWidth: constraints.maxWidth);
-            } else if (constraints.maxWidth < 840) {
-              return MediumLayout(maxWidth: constraints.maxWidth);
-            } else {
-              return ExpandedLayout(maxWidth: constraints.maxWidth);
-            }
-          },
-        ),
-      ),
-    );
-  }
-}
-
-// 1. Compact Layout (< 600 px)
-class CompactLayout extends StatelessWidget {
-  final double maxWidth;
-  const CompactLayout({super.key, required this.maxWidth});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.red.shade50,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$studentId - $studentName', style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Chip(
-            avatar: const Icon(Icons.phone_android, color: Colors.red),
-            label: Text('Compact Layout (${maxWidth.toStringAsFixed(0)} px)'),
-            backgroundColor: Colors.red.shade100,
-          ),
-          const SizedBox(height: 16),
-          const Card(
-            child: ListTile(
-              leading: Icon(Icons.view_headline, color: Colors.red),
-              title: Text('Tampilan 1 Kolom (Phone)'),
-              subtitle: Text('Semua elemen ditumpuk secara vertikal.'),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Identitas Mahasiswa
+            Text(
+              '$studentId - $studentName',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+            const Divider(height: 24),
 
-// 2. Medium Layout (600 - 839 px)
-class MediumLayout extends StatelessWidget {
-  final double maxWidth;
-  const MediumLayout({super.key, required this.maxWidth});
+            // 1. Penerapan Expanded dengan Flex Ratio 2:1
+            const Text(
+              '1. Perbandingan Expanded (Flex 2 : 1)',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    color: Colors.blue.shade200,
+                    child: const Text(
+                      'Panel A (flex: 2)\nMengambil 2/3 ruang',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    color: Colors.blue.shade400,
+                    child: const Text(
+                      'Panel B (flex: 1)\nMengambil 1/3 ruang',
+                      style: TextStyle(color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.orange.shade50,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$studentId - $studentName', style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Chip(
-            avatar: const Icon(Icons.tablet_android, color: Colors.orange),
-            label: Text('Medium Layout (${maxWidth.toStringAsFixed(0)} px)'),
-            backgroundColor: Colors.orange.shade100,
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: const [
-              Expanded(
-                child: Card(
-                  child: ListTile(
-                    leading: Icon(Icons.view_module, color: Colors.orange),
-                    title: Text('Kolom Kiri'),
-                    subtitle: Text('Tablet Portrait / Small Tablet'),
-                  ),
-                ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Card(
-                  child: ListTile(
-                    leading: Icon(Icons.view_module, color: Colors.orange),
-                    title: Text('Kolom Kanan'),
-                    subtitle: Text('Tata letak terbagi 2 kolom'),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
+            const SizedBox(height: 24),
 
-// 3. Expanded Layout (>= 840 px)
-class ExpandedLayout extends StatelessWidget {
-  final double maxWidth;
-  const ExpandedLayout({super.key, required this.maxWidth});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.green.shade50,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$studentId - $studentName', style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Chip(
-            avatar: const Icon(Icons.desktop_windows, color: Colors.green),
-            label: Text('Expanded Layout (${maxWidth.toStringAsFixed(0)} px)'),
-            backgroundColor: Colors.green.shade100,
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: const [
-              Expanded(
-                child: Card(
-                  child: ListTile(
-                    leading: Icon(Icons.grid_view, color: Colors.green),
-                    title: Text('Panel 1'),
-                  ),
-                ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Card(
-                  child: ListTile(
-                    leading: Icon(Icons.grid_view, color: Colors.green),
-                    title: Text('Panel 2'),
-                  ),
-                ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Card(
-                  child: ListTile(
-                    leading: Icon(Icons.grid_view, color: Colors.green),
-                    title: Text('Panel 3'),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+            // 2. Penerapan Wrap untuk Chip Skill
+            const Text(
+              '2. Demonstrasi Wrap vs Row',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Wrap secara otomatis memindahkan Chip ke baris baru ketika lebar layar tidak mencukupi:',
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8.0, // Jarak horizontal antar chip
+              runSpacing: 8.0, // Jarak vertikal antar baris
+              children: skills
+                  .map(
+                    (skill) => Chip(
+                      avatar: const Icon(Icons.check_circle, size: 18),
+                      label: Text(skill),
+                      backgroundColor: Colors.grey.shade200,
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+        ),
       ),
     );
   }
