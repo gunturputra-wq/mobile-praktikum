@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Praktikum Flutter',
+      title: 'Aplikasi Praktikum Flutter - Final',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
@@ -44,10 +44,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aplikasi Praktikum Flutter'),
+        title: const Text('Tahap 12 - Final Project'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: _pages[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
@@ -74,7 +77,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }
 }
 
-// TAB 1: Dashboard Responsif (LayoutBuilder & Breakpoint)
+// TAB 1: Dashboard Responsif
 class DashboardTab extends StatelessWidget {
   const DashboardTab({super.key});
 
@@ -130,21 +133,21 @@ class DashboardTab extends StatelessWidget {
                 if (isExpanded)
                   Row(
                     children: const [
-                      Expanded(child: StatCard(title: 'Total Course', value: '6', color: Colors.blue)),
+                      Expanded(child: StatCard(title: 'Total Course', value: '4', color: Colors.blue)),
                       SizedBox(width: 12),
                       Expanded(child: StatCard(title: 'Selesai', value: '2', color: Colors.green)),
                       SizedBox(width: 12),
-                      Expanded(child: StatCard(title: 'Aktif', value: '4', color: Colors.orange)),
+                      Expanded(child: StatCard(title: 'Aktif', value: '2', color: Colors.orange)),
                     ],
                   )
                 else
                   Column(
                     children: const [
-                      StatCard(title: 'Total Course', value: '6', color: Colors.blue),
+                      StatCard(title: 'Total Course', value: '4', color: Colors.blue),
                       SizedBox(height: 8),
                       StatCard(title: 'Selesai', value: '2', color: Colors.green),
                       SizedBox(height: 8),
-                      StatCard(title: 'Aktif', value: '4', color: Colors.orange),
+                      StatCard(title: 'Aktif', value: '2', color: Colors.orange),
                     ],
                   ),
               ],
@@ -186,7 +189,7 @@ class StatCard extends StatelessWidget {
   }
 }
 
-// TAB 2: Daftar Course & Passing Data
+// TAB 2: List Course & Detail
 class CourseListTab extends StatelessWidget {
   const CourseListTab({super.key});
 
