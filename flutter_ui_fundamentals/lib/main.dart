@@ -1,8 +1,6 @@
-
-import 'dart:convert';
-import 'services/course_service.dart';
+﻿import 'services/course_service.dart';
+import 'repositories/course_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'models/course.dart';
@@ -13,19 +11,27 @@ const String studentId = '2415051056';
 void main() {
   runApp(
     ChangeNotifierProvider(
-      create: (_) => CourseState(),
+      create: (_) => CourseState(CourseRepository(CourseService())),
       child: const CourseExplorerApp(),
     ),
   );
 }
 
-// STATE FAVORIT
+// STATE FAVORIT DAN AKSES DATA MELALUI REPOSITORY
 class CourseState extends ChangeNotifier {
+  final CourseRepository repository;
+
+  CourseState(this.repository);
+
   final Set<String> _favorites = <String>{};
 
   int get favoriteCount => _favorites.length;
 
   bool isFavorite(String id) => _favorites.contains(id);
+
+  Future<List<Course>> getCourses() {
+    return repository.getCourses();
+  }
 
   void toggleFavorite(String id) {
     if (_favorites.contains(id)) {
@@ -36,37 +42,6 @@ class CourseState extends ChangeNotifier {
 
     notifyListeners();
   }
-}
-
-// PEMUATAN DAN PARSING JSON MENJADI OBJECT COURSE
-Future<List<Course>> loadCourses() async {
-  final String jsonString =
-      await rootBundle.loadString('assets/data/student_data.json');
-
-  final dynamic decoded = jsonDecode(jsonString);
-
-  List<dynamic> jsonList;
-
-  if (decoded is List) {
-    jsonList = decoded;
-  } else if (decoded is Map<String, dynamic> &&
-      decoded['courses'] is List) {
-    jsonList = decoded['courses'] as List<dynamic>;
-  } else {
-    throw const FormatException(
-      'Format JSON harus berupa list atau object dengan key courses.',
-    );
-  }
-
-  return jsonList.map<Course>((dynamic item) {
-    if (item is! Map<String, dynamic>) {
-      throw const FormatException(
-        'Setiap mata kuliah harus berupa object JSON.',
-      );
-    }
-
-    return Course.fromJson(item);
-  }).toList();
 }
 
 // APLIKASI UTAMA
@@ -80,9 +55,7 @@ class CourseExplorerApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4F46E5),
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4F46E5)),
         scaffoldBackgroundColor: const Color(0xFFF5F7FB),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFFF5F7FB),
@@ -108,8 +81,7 @@ class MainResponsiveShell extends StatefulWidget {
   const MainResponsiveShell({super.key});
 
   @override
-  State<MainResponsiveShell> createState() =>
-      _MainResponsiveShellState();
+  State<MainResponsiveShell> createState() => _MainResponsiveShellState();
 }
 
 class _MainResponsiveShellState extends State<MainResponsiveShell> {
@@ -122,7 +94,7 @@ class _MainResponsiveShellState extends State<MainResponsiveShell> {
   @override
   void initState() {
     super.initState();
-    coursesFuture = loadCourses();
+    coursesFuture = context.read<CourseState>().getCourses();
   }
 
   @override
@@ -168,9 +140,7 @@ class _MainResponsiveShellState extends State<MainResponsiveShell> {
         future: coursesFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
@@ -191,15 +161,14 @@ class _MainResponsiveShellState extends State<MainResponsiveShell> {
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      '${snapshot.error}',
-                      textAlign: TextAlign.center,
-                    ),
+                    Text('${snapshot.error}', textAlign: TextAlign.center),
                     const SizedBox(height: 16),
                     FilledButton.icon(
                       onPressed: () {
                         setState(() {
-                          coursesFuture = loadCourses();
+                          coursesFuture = context
+                              .read<CourseState>()
+                              .getCourses();
                         });
                       },
                       icon: const Icon(Icons.refresh),
@@ -253,10 +222,7 @@ class _MainResponsiveShellState extends State<MainResponsiveShell> {
                   ],
                 ),
               Expanded(
-                child: IndexedStack(
-                  index: selectedIndex,
-                  children: pages,
-                ),
+                child: IndexedStack(index: selectedIndex, children: pages),
               ),
             ],
           );
@@ -320,21 +286,14 @@ class HomePage extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [
-                Color(0xFF4F46E5),
-                Color(0xFF7C3AED),
-              ],
+              colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
             ),
             borderRadius: BorderRadius.circular(24),
           ),
           child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.waving_hand_rounded,
-                color: Colors.white,
-                size: 34,
-              ),
+              Icon(Icons.waving_hand_rounded, color: Colors.white, size: 34),
               SizedBox(height: 16),
               Text(
                 'Selamat Datang!',
@@ -350,10 +309,7 @@ class HomePage extends StatelessWidget {
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
               SizedBox(height: 4),
-              Text(
-                'NIM: $studentId',
-                style: TextStyle(color: Colors.white70),
-              ),
+              Text('NIM: $studentId', style: TextStyle(color: Colors.white70)),
               SizedBox(height: 12),
               Text(
                 'Pendidikan Teknik Informatika',
@@ -412,10 +368,7 @@ class HomePage extends StatelessWidget {
               children: [
                 const Text(
                   'ValueNotifier Counter',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
                 const Text('Contoh pengelolaan state sederhana.'),
@@ -462,10 +415,7 @@ class HomePage extends StatelessWidget {
             const Expanded(
               child: Text(
                 'Mata Kuliah Terbaru',
-                style: TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
               ),
             ),
             TextButton(
@@ -478,7 +428,9 @@ class HomePage extends StatelessWidget {
         if (courses.isEmpty)
           const EmptyCoursesCard()
         else
-          ...courses.take(3).map(
+          ...courses
+              .take(3)
+              .map(
                 (course) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: CourseCard(course: course),
@@ -493,10 +445,7 @@ class HomePage extends StatelessWidget {
 class CoursesPage extends StatefulWidget {
   final List<Course> courses;
 
-  const CoursesPage({
-    super.key,
-    required this.courses,
-  });
+  const CoursesPage({super.key, required this.courses});
 
   @override
   State<CoursesPage> createState() => _CoursesPageState();
@@ -535,9 +484,7 @@ class _CoursesPageState extends State<CoursesPage> {
             prefixIcon: const Icon(Icons.search),
             filled: true,
             fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
           ),
         ),
         const SizedBox(height: 16),
@@ -546,15 +493,10 @@ class _CoursesPageState extends State<CoursesPage> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                const Icon(
-                  Icons.favorite,
-                  color: Color(0xFFE11D48),
-                ),
+                const Icon(Icons.favorite, color: Color(0xFFE11D48)),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    '${state.favoriteCount} mata kuliah favorit',
-                  ),
+                  child: Text('${state.favoriteCount} mata kuliah favorit'),
                 ),
               ],
             ),
@@ -579,10 +521,7 @@ class _CoursesPageState extends State<CoursesPage> {
 class CourseCard extends StatefulWidget {
   final Course course;
 
-  const CourseCard({
-    super.key,
-    required this.course,
-  });
+  const CourseCard({super.key, required this.course});
 
   @override
   State<CourseCard> createState() => _CourseCardState();
@@ -640,9 +579,7 @@ class _CourseCardState extends State<CourseCard> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        '${course.credits} SKS • ${course.category}',
-                      ),
+                      Text('${course.credits} SKS Ã¢â‚¬Â¢ ${course.category}'),
                     ],
                   ),
                 ),
@@ -654,12 +591,8 @@ class _CourseCardState extends State<CourseCard> {
                     context.read<CourseState>().toggleFavorite(course.id);
                   },
                   icon: Icon(
-                    isFavorite
-                        ? Icons.favorite
-                        : Icons.favorite_border,
-                    color: isFavorite
-                        ? const Color(0xFFE11D48)
-                        : Colors.grey,
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: isFavorite ? const Color(0xFFE11D48) : Colors.grey,
                   ),
                 ),
               ],
@@ -692,9 +625,7 @@ class _CourseCardState extends State<CourseCard> {
                   onPressed: () {
                     setState(() => expanded = !expanded);
                   },
-                  icon: Icon(
-                    expanded ? Icons.expand_less : Icons.expand_more,
-                  ),
+                  icon: Icon(expanded ? Icons.expand_less : Icons.expand_more),
                   label: Text(expanded ? 'Tutup' : 'Detail'),
                 ),
               ],
@@ -718,10 +649,7 @@ class _CourseCardState extends State<CourseCard> {
 class ProfilePage extends StatelessWidget {
   final List<Course> courses;
 
-  const ProfilePage({
-    super.key,
-    required this.courses,
-  });
+  const ProfilePage({super.key, required this.courses});
 
   @override
   Widget build(BuildContext context) {
@@ -751,10 +679,7 @@ class ProfilePage extends StatelessWidget {
                 const Text(
                   studentName,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 const Text('NIM: $studentId'),
@@ -835,10 +760,7 @@ class DashboardStatCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(color: Colors.grey),
-                    ),
+                    Text(title, style: const TextStyle(color: Colors.grey)),
                     const SizedBox(height: 5),
                     Text(
                       value,
@@ -869,11 +791,7 @@ class EmptyCoursesCard extends StatelessWidget {
         padding: EdgeInsets.all(28),
         child: Column(
           children: [
-            Icon(
-              Icons.search_off_rounded,
-              size: 44,
-              color: Colors.grey,
-            ),
+            Icon(Icons.search_off_rounded, size: 44, color: Colors.grey),
             SizedBox(height: 12),
             Text(
               'Data mata kuliah tidak ditemukan.',
