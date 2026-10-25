@@ -7,10 +7,51 @@ import 'providers/course_provider.dart';
 import 'repositories/course_repository.dart';
 import 'services/course_service.dart';
 
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
 const String studentName = 'I Ketut Guntur Putra Dangin';
 const String studentId = '2415051056';
 
+
+// Endpoint REST API untuk Tahap 2
+const String apiUrl =
+    'https://course-api-pearl.vercel.app/endpoint-salah';
+
+// Fungsi HTTP GET untuk menguji pengambilan data JSON
+Future<List<dynamic>> fetchCourses() async {
+  final response = await http.get(Uri.parse(apiUrl));
+
+  debugPrint('HTTP Status Code: ${response.statusCode}');
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body) as List<dynamic>;
+
+    debugPrint('Nama: $studentName');
+    debugPrint('NIM: $studentId');
+    debugPrint('Jumlah mata kuliah dari API: ${data.length}');
+
+    return data;
+  }
+
+  throw Exception('HTTP ${response.statusCode}');
+}
+
+// Pengujian HTTP GET untuk Tahap 2
+Future<void> testFetchCourses() async {
+  try {
+    final courses = await fetchCourses();
+    debugPrint('HTTP GET berhasil: ${courses.length} data diterima.');
+  } catch (e) {
+    debugPrint('Gagal mengambil data: $e');
+  }
+}
+
+
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  testFetchCourses();
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => CourseState(CourseRepository(CourseService())),
