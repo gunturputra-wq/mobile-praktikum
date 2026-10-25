@@ -1,29 +1,29 @@
 
 import '../models/course.dart';
-import '../services/course_api_service.dart';
+import '../services/course_data_source.dart';
 
 class CourseRepository {
-  final CourseApiService apiService;
+  final CourseDataSource dataSource;
 
-  CourseRepository(this.apiService);
+  CourseRepository(this.dataSource);
 
-  // HTTP GET: mengambil daftar course
+  // GET: mengambil daftar course
   Future<List<Course>> getCourses() {
-    return apiService.getCourses();
+    return dataSource.getCourses();
   }
 
-  // HTTP POST: membuat course baru
+  // POST: membuat course baru
   Future<Course> createCourse(Course course) {
-    return apiService.createCourse(course);
+    return dataSource.createCourse(course);
   }
 
-  // HTTP PUT: memperbarui course
+  // PUT/PATCH: memperbarui course
   Future<void> updateCourse(int id, Course course) {
-    return apiService.updateCourse(id, course);
+    return dataSource.updateCourse(id, course);
   }
 
-  // HTTP DELETE: menghapus course
+  // DELETE: menghapus course
   Future<void> deleteCourse(int id) {
-    return apiService.deleteCourse(id);
+    return dataSource.deleteCourse(id);
   }
 }

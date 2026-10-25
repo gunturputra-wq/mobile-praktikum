@@ -7,7 +7,7 @@ import 'config/supabase_config.dart';
 import 'models/course.dart';
 import 'providers/course_provider.dart';
 import 'repositories/course_repository.dart';
-import 'services/course_api_service.dart';
+import 'services/course_supabase_service.dart';
 import 'widgets/error_view.dart';
 
 const String studentName = 'I Ketut Guntur Putra Dangin';
@@ -25,7 +25,7 @@ Future<void> main() async {
     ChangeNotifierProvider(
       create: (_) => CourseState(
         CourseRepository(
-          CourseApiService('http://localhost:8000/api'),
+          CourseSupabaseService(),
         ),
       )..loadCourses(),
       child: const CourseExplorerApp(),
@@ -57,7 +57,9 @@ class CourseExplorerApp extends StatelessWidget {
           margin: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: Color(0xFFE8EAF2)),
+            side: const BorderSide(
+              color: Color(0xFFE8EAF2),
+            ),
           ),
         ),
       ),
@@ -76,7 +78,8 @@ class MainResponsiveShell extends StatefulWidget {
       _MainResponsiveShellState();
 }
 
-class _MainResponsiveShellState extends State<MainResponsiveShell> {
+class _MainResponsiveShellState
+    extends State<MainResponsiveShell> {
   int selectedIndex = 0;
   final ValueNotifier<int> counter = ValueNotifier<int>(0);
 
@@ -88,17 +91,23 @@ class _MainResponsiveShellState extends State<MainResponsiveShell> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isWide = MediaQuery.sizeOf(context).width >= 800;
+    final bool isWide =
+        MediaQuery.sizeOf(context).width >= 800;
 
     return Scaffold(
       appBar: AppBar(
         title: const Row(
           children: [
-            Icon(Icons.school_rounded, color: Color(0xFF4F46E5)),
+            Icon(
+              Icons.school_rounded,
+              color: Color(0xFF4F46E5),
+            ),
             SizedBox(width: 10),
             Text(
               'Course Explorer',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
@@ -111,7 +120,9 @@ class _MainResponsiveShellState extends State<MainResponsiveShell> {
                   return Badge(
                     isLabelVisible: state.favoriteCount > 0,
                     label: Text('${state.favoriteCount}'),
-                    child: const Icon(Icons.favorite_rounded),
+                    child: const Icon(
+                      Icons.favorite_rounded,
+                    ),
                   );
                 },
               ),
@@ -303,7 +314,9 @@ class HomePage extends StatelessWidget {
               SizedBox(height: 4),
               Text(
                 'NIM: $studentId',
-                style: TextStyle(color: Colors.white70),
+                style: TextStyle(
+                  color: Colors.white70,
+                ),
               ),
               SizedBox(height: 12),
               Text(
@@ -328,7 +341,8 @@ class HomePage extends StatelessWidget {
                 constraints.maxWidth >= 650 ? 3 : 1;
 
             final double cardWidth =
-                (constraints.maxWidth - (columns - 1) * 12) /
+                (constraints.maxWidth -
+                        (columns - 1) * 12) /
                     columns;
 
             return Wrap(
@@ -788,7 +802,8 @@ class EditCourseDialog extends StatefulWidget {
   });
 
   @override
-  State<EditCourseDialog> createState() => _EditCourseDialogState();
+  State<EditCourseDialog> createState() =>
+      _EditCourseDialogState();
 }
 
 class _EditCourseDialogState extends State<EditCourseDialog> {
@@ -818,7 +833,9 @@ class _EditCourseDialogState extends State<EditCourseDialog> {
     _categoryController = TextEditingController(
       text: course.category,
     );
-    _statusController = TextEditingController(text: course.status);
+    _statusController = TextEditingController(
+      text: course.status,
+    );
     _descriptionController = TextEditingController(
       text: course.description,
     );
@@ -1055,7 +1072,9 @@ class ProfilePage extends StatelessWidget {
                 const ListTile(
                   leading: Icon(Icons.school_outlined),
                   title: Text('Program Studi'),
-                  subtitle: Text('Pendidikan Teknik Informatika'),
+                  subtitle: Text(
+                    'Pendidikan Teknik Informatika',
+                  ),
                 ),
                 ListTile(
                   leading: const Icon(Icons.menu_book_outlined),
