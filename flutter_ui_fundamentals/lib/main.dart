@@ -1,7 +1,9 @@
 ﻿
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'config/supabase_config.dart';
 import 'models/course.dart';
 import 'providers/course_provider.dart';
 import 'repositories/course_repository.dart';
@@ -11,8 +13,13 @@ import 'widgets/error_view.dart';
 const String studentName = 'I Ketut Guntur Putra Dangin';
 const String studentId = '2415051056';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    publishableKey: SupabaseConfig.publishableKey,
+  );
 
   runApp(
     ChangeNotifierProvider(
@@ -59,6 +66,8 @@ class CourseExplorerApp extends StatelessWidget {
   }
 }
 
+// RESPONSIVE SHELL
+
 class MainResponsiveShell extends StatefulWidget {
   const MainResponsiveShell({super.key});
 
@@ -69,7 +78,6 @@ class MainResponsiveShell extends StatefulWidget {
 
 class _MainResponsiveShellState extends State<MainResponsiveShell> {
   int selectedIndex = 0;
-
   final ValueNotifier<int> counter = ValueNotifier<int>(0);
 
   @override
@@ -560,7 +568,6 @@ class _CourseCardState extends State<CourseCard> {
     );
   }
 
-  // HTTP DELETE: konfirmasi dan hapus course
   Future<void> _deleteCourse() async {
     final course = widget.course;
     final id = course.id;
@@ -603,13 +610,11 @@ class _CourseCardState extends State<CourseCard> {
       ),
     );
 
-    // Periksa context setelah dialog ditutup.
     if (!mounted || confirmed != true) return;
 
     try {
       await context.read<CourseState>().deleteCourse(id);
 
-      // Periksa context setelah await DELETE.
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -804,6 +809,7 @@ class _EditCourseDialogState extends State<EditCourseDialog> {
     super.initState();
 
     final course = widget.course;
+
     _codeController = TextEditingController(text: course.code);
     _titleController = TextEditingController(text: course.title);
     _creditsController = TextEditingController(
@@ -865,9 +871,11 @@ class _EditCourseDialogState extends State<EditCourseDialog> {
       );
 
       if (!mounted) return;
+
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
+
       setState(() {
         _errorMessage = 'Gagal menyimpan perubahan: $e';
       });
@@ -917,9 +925,11 @@ class _EditCourseDialogState extends State<EditCourseDialog> {
                   validator: (value) {
                     final credits =
                         int.tryParse(value?.trim() ?? '');
+
                     if (credits == null || credits <= 0) {
                       return 'Masukkan jumlah SKS yang valid';
                     }
+
                     return null;
                   },
                 ),
