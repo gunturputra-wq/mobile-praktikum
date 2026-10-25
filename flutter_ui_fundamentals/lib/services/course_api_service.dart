@@ -17,7 +17,9 @@ class CourseApiService {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Gagal mengambil course');
+      throw Exception(
+        'Gagal mengambil course. Status: ${response.statusCode}',
+      );
     }
 
     final List<dynamic> data =
@@ -38,6 +40,7 @@ class CourseApiService {
       Uri.parse('$baseUrl/courses'),
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       body: jsonEncode(course.toJson()),
     );
@@ -52,5 +55,24 @@ class CourseApiService {
     throw Exception(
       'Gagal membuat course. Status: ${response.statusCode}',
     );
+  }
+
+  // HTTP PUT: memperbarui course yang sudah ada
+  Future<void> updateCourse(int id, Course course) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/courses/$id'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode(course.toJson()),
+    );
+
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300) {
+      throw Exception(
+        'Gagal memperbarui course. Status: ${response.statusCode}',
+      );
+    }
   }
 }

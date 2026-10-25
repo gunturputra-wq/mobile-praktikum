@@ -56,4 +56,22 @@ class CourseState extends ChangeNotifier {
 
     notifyListeners();
   }
+
+  
+  Future<void> updateCourse(int id, Course updatedCourse) async {
+    try {
+      await repository.updateCourse(id, updatedCourse);
+
+      // Ambil data terbaru dari server setelah update berhasil.
+      courses = await repository.getCourses();
+
+      error = null;
+      notifyListeners();
+    } catch (e) {
+      error = 'Gagal memperbarui course: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
 }

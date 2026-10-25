@@ -16,12 +16,11 @@ void main() {
 
   runApp(
     ChangeNotifierProvider(
-      create: (_) =>
-          CourseState(
-  CourseRepository(
-    CourseApiService('http://localhost:8000/api'),
-  ),
-)..loadCourses(),
+      create: (_) => CourseState(
+        CourseRepository(
+          CourseApiService('http://localhost:8000/api'),
+        ),
+      )..loadCourses(),
       child: const CourseExplorerApp(),
     ),
   );
@@ -64,7 +63,8 @@ class MainResponsiveShell extends StatefulWidget {
   const MainResponsiveShell({super.key});
 
   @override
-  State<MainResponsiveShell> createState() => _MainResponsiveShellState();
+  State<MainResponsiveShell> createState() =>
+      _MainResponsiveShellState();
 }
 
 class _MainResponsiveShellState extends State<MainResponsiveShell> {
@@ -245,7 +245,8 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final int favoriteCount = context.watch<CourseState>().favoriteCount;
+    final int favoriteCount =
+        context.watch<CourseState>().favoriteCount;
 
     final int totalCredits = courses.fold<int>(
       0,
@@ -315,10 +316,12 @@ class HomePage extends StatelessWidget {
         const SizedBox(height: 14),
         LayoutBuilder(
           builder: (context, constraints) {
-            final int columns = constraints.maxWidth >= 650 ? 3 : 1;
+            final int columns =
+                constraints.maxWidth >= 650 ? 3 : 1;
 
             final double cardWidth =
-                (constraints.maxWidth - (columns - 1) * 12) / columns;
+                (constraints.maxWidth - (columns - 1) * 12) /
+                    columns;
 
             return Wrap(
               spacing: 12,
@@ -364,7 +367,9 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text('Contoh pengelolaan state sederhana.'),
+                const Text(
+                  'Contoh pengelolaan state sederhana.',
+                ),
                 const SizedBox(height: 12),
                 ValueListenableBuilder<int>(
                   valueListenable: counter,
@@ -421,15 +426,12 @@ class HomePage extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        if (courses.isEmpty)
-          const EmptyCoursesCard()
-        else
-          ...courses.take(3).map(
-                (course) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: CourseCard(course: course),
-                ),
-              ),
+        ...courses.take(3).map(
+          (course) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: CourseCard(course: course),
+          ),
+        ),
       ],
     );
   }
@@ -457,7 +459,8 @@ class _CoursesPageState extends State<CoursesPage> {
     final state = context.watch<CourseState>();
     final String query = searchQuery.toLowerCase();
 
-    final List<Course> filteredCourses = widget.courses.where((course) {
+    final List<Course> filteredCourses =
+        widget.courses.where((course) {
       return course.title.toLowerCase().contains(query) ||
           course.code.toLowerCase().contains(query) ||
           course.category.toLowerCase().contains(query);
@@ -541,6 +544,21 @@ class CourseCard extends StatefulWidget {
 
 class _CourseCardState extends State<CourseCard> {
   bool expanded = false;
+
+  Future<void> _editCourse() async {
+    final bool? updated = await showDialog<bool>(
+      context: context,
+      builder: (_) => EditCourseDialog(course: widget.course),
+    );
+
+    if (!mounted || updated != true) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Mata kuliah berhasil diperbarui.'),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -644,6 +662,11 @@ class _CourseCardState extends State<CourseCard> {
                 ),
                 const Spacer(),
                 TextButton.icon(
+                  onPressed: _editCourse,
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Edit'),
+                ),
+                TextButton.icon(
                   onPressed: () {
                     setState(() => expanded = !expanded);
                   },
@@ -667,6 +690,221 @@ class _CourseCardState extends State<CourseCard> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// FORM EDIT MATA KULIAH
+
+class EditCourseDialog extends StatefulWidget {
+  final Course course;
+
+  const EditCourseDialog({
+    super.key,
+    required this.course,
+  });
+
+  @override
+  State<EditCourseDialog> createState() => _EditCourseDialogState();
+}
+
+class _EditCourseDialogState extends State<EditCourseDialog> {
+  final _formKey = GlobalKey<FormState>();
+
+  late final TextEditingController _codeController;
+  late final TextEditingController _titleController;
+  late final TextEditingController _creditsController;
+  late final TextEditingController _categoryController;
+  late final TextEditingController _statusController;
+  late final TextEditingController _descriptionController;
+
+  bool _isSubmitting = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final course = widget.course;
+    _codeController = TextEditingController(text: course.code);
+    _titleController = TextEditingController(text: course.title);
+    _creditsController = TextEditingController(
+      text: course.credits.toString(),
+    );
+    _categoryController = TextEditingController(
+      text: course.category,
+    );
+    _statusController = TextEditingController(text: course.status);
+    _descriptionController = TextEditingController(
+      text: course.description,
+    );
+  }
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    _titleController.dispose();
+    _creditsController.dispose();
+    _categoryController.dispose();
+    _statusController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate() || _isSubmitting) {
+      return;
+    }
+
+    final id = widget.course.id;
+
+    if (id == null) {
+      setState(() {
+        _errorMessage = 'ID mata kuliah tidak tersedia.';
+      });
+      return;
+    }
+
+    final updatedCourse = Course(
+      id: id,
+      code: widget.course.code,
+      title: _titleController.text.trim(),
+      credits: int.parse(_creditsController.text.trim()),
+      category: _categoryController.text.trim(),
+      status: _statusController.text.trim(),
+      description: _descriptionController.text.trim(),
+    );
+
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await context.read<CourseState>().updateCourse(
+        id,
+        updatedCourse,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Gagal menyimpan perubahan: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit Mata Kuliah'),
+      content: SizedBox(
+        width: 450,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _codeController,
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Kode Mata Kuliah',
+                    helperText: 'Kode tidak dapat diubah',
+                  ),
+                ),
+                TextFormField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama Mata Kuliah',
+                  ),
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty
+                          ? 'Nama mata kuliah wajib diisi'
+                          : null,
+                ),
+                TextFormField(
+                  controller: _creditsController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Jumlah SKS',
+                  ),
+                  validator: (value) {
+                    final credits =
+                        int.tryParse(value?.trim() ?? '');
+                    if (credits == null || credits <= 0) {
+                      return 'Masukkan jumlah SKS yang valid';
+                    }
+                    return null;
+                  },
+                ),
+                TextFormField(
+                  controller: _categoryController,
+                  decoration: const InputDecoration(
+                    labelText: 'Kategori',
+                  ),
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty
+                          ? 'Kategori wajib diisi'
+                          : null,
+                ),
+                TextFormField(
+                  controller: _statusController,
+                  decoration: const InputDecoration(
+                    labelText: 'Status',
+                  ),
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty
+                          ? 'Status wajib diisi'
+                          : null,
+                ),
+                TextFormField(
+                  controller: _descriptionController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Deskripsi',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSubmitting
+              ? null
+              : () => Navigator.of(context).pop(false),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: _isSubmitting ? null : _save,
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text('Simpan'),
+        ),
+      ],
     );
   }
 }
