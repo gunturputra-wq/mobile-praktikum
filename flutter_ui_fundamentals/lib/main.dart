@@ -560,6 +560,76 @@ class _CourseCardState extends State<CourseCard> {
     );
   }
 
+  // HTTP DELETE: konfirmasi dan hapus course
+  Future<void> _deleteCourse() async {
+    final course = widget.course;
+    final id = course.id;
+
+    if (id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ID mata kuliah tidak tersedia.'),
+        ),
+      );
+      return;
+    }
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hapus Mata Kuliah?'),
+        content: Text(
+          'Apakah kamu yakin ingin menghapus '
+          '${course.title} (${course.code})?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop(false);
+            },
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.of(dialogContext).pop(true);
+            },
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    // Periksa context setelah dialog ditutup.
+    if (!mounted || confirmed != true) return;
+
+    try {
+      await context.read<CourseState>().deleteCourse(id);
+
+      // Periksa context setelah await DELETE.
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Mata kuliah ${course.code} berhasil dihapus.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menghapus mata kuliah: $e'),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final Course course = widget.course;
@@ -665,6 +735,14 @@ class _CourseCardState extends State<CourseCard> {
                   onPressed: _editCourse,
                   icon: const Icon(Icons.edit_outlined),
                   label: const Text('Edit'),
+                ),
+                TextButton.icon(
+                  onPressed: _deleteCourse,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.red,
+                  ),
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Delete'),
                 ),
                 TextButton.icon(
                   onPressed: () {

@@ -1,3 +1,4 @@
+
 import 'package:flutter/foundation.dart';
 
 import '../models/course.dart';
@@ -23,11 +24,13 @@ class CourseState extends ChangeNotifier {
   List<Course> favoriteCourses(List<Course> courses) {
     return courses
         .where(
-          (course) => _favorites.contains(course.id?.toString() ?? course.code),
+          (course) =>
+              _favorites.contains(course.id?.toString() ?? course.code),
         )
         .toList();
   }
 
+  // HTTP GET: mengambil daftar course
   Future<void> loadCourses() async {
     isLoading = true;
     error = null;
@@ -47,6 +50,7 @@ class CourseState extends ChangeNotifier {
     return repository.getCourses();
   }
 
+  // Mengubah status favorit
   void toggleFavorite(String code) {
     if (_favorites.contains(code)) {
       _favorites.remove(code);
@@ -57,12 +61,11 @@ class CourseState extends ChangeNotifier {
     notifyListeners();
   }
 
-  
+  // HTTP PUT: memperbarui course
   Future<void> updateCourse(int id, Course updatedCourse) async {
     try {
       await repository.updateCourse(id, updatedCourse);
 
-      // Ambil data terbaru dari server setelah update berhasil.
       courses = await repository.getCourses();
 
       error = null;
@@ -74,4 +77,31 @@ class CourseState extends ChangeNotifier {
     }
   }
 
+  // HTTP DELETE: menghapus course
+  Future<void> deleteCourse(int id) async {
+    final deletedCourses = courses
+        .where((course) => course.id == id)
+        .toList();
+
+    try {
+      await repository.deleteCourse(id);
+
+      // Hapus favorit berdasarkan ID dan kode course.
+      _favorites.remove(id.toString());
+
+      for (final course in deletedCourses) {
+        _favorites.remove(course.code);
+      }
+
+      // Perbarui daftar course dari server.
+      courses = await repository.getCourses();
+
+      error = null;
+      notifyListeners();
+    } catch (e) {
+      error = 'Gagal menghapus course: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
 }
