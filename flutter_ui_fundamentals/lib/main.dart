@@ -551,7 +551,7 @@ class _CourseCardState extends State<CourseCard> {
     final Course course = widget.course;
 
     final bool isFavorite = context.select<CourseState, bool>(
-      (state) => state.isFavorite(course.id),
+      (state) => state.isFavorite(course.id?.toString() ?? course.code),
     );
 
     return Card(
@@ -604,7 +604,9 @@ class _CourseCardState extends State<CourseCard> {
                       ? 'Hapus dari favorit'
                       : 'Tambahkan ke favorit',
                   onPressed: () {
-                    context.read<CourseState>().toggleFavorite(course.id);
+                    context.read<CourseState>().toggleFavorite(
+                  course.id?.toString() ?? course.code,
+                  );
                   },
                   icon: Icon(
                     isFavorite ? Icons.favorite : Icons.favorite_border,

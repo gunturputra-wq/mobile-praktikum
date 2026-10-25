@@ -1,5 +1,6 @@
+
 class Course {
-  final String id;
+  final int? id;
   final String code;
   final String title;
   final int credits;
@@ -8,44 +9,38 @@ class Course {
   final String description;
 
   const Course({
-    required this.id,
+    this.id,
     required this.code,
     required this.title,
     required this.credits,
-    required this.category,
-    required this.status,
-    required this.description,
+    this.category = 'Umum',
+    this.status = 'planned',
+    this.description = '',
   });
 
   factory Course.fromJson(Map<String, dynamic> json) {
-    final String code = json['code']?.toString() ?? '';
+    final dynamic rawId = json['id'];
     final dynamic rawCredits = json['credits'];
 
-    int parsedCredits = 0;
-
-    if (rawCredits is num) {
-      parsedCredits = rawCredits.toInt();
-    } else if (rawCredits != null) {
-      parsedCredits = int.tryParse(rawCredits.toString()) ?? 0;
-    }
-
     return Course(
-      id: json['id']?.toString() ??
-          (code.isNotEmpty
-              ? code
-              : 'course-${json['title'] ?? 'unknown'}'),
-      code: code,
-      title: json['title']?.toString() ?? 'Mata Kuliah Tanpa Nama',
-      credits: parsedCredits,
+      id: rawId == null
+          ? null
+          : int.tryParse(rawId.toString()),
+      code: json['code']?.toString() ?? '',
+      title: json['title']?.toString() ??
+          'Mata Kuliah Tanpa Nama',
+      credits: rawCredits is num
+          ? rawCredits.toInt()
+          : int.tryParse(rawCredits?.toString() ?? '') ?? 0,
       category: json['category']?.toString() ?? 'Umum',
-      status: json['status']?.toString() ?? 'Belum dimulai',
+      status: json['status']?.toString() ?? 'planned',
       description: json['description']?.toString() ?? '',
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      if (id != null) 'id': id,
       'code': code,
       'title': title,
       'credits': credits,

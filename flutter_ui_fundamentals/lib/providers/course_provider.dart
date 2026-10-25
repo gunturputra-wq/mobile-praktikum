@@ -19,7 +19,10 @@ class CourseState extends ChangeNotifier {
 
   List<Course> favoriteCourses(List<Course> courses) {
     return courses
-        .where((course) => _favorites.contains(course.id))
+        .where(
+          (course) =>
+              _favorites.contains(course.id?.toString() ?? course.code),
+        )
         .toList();
   }
 
