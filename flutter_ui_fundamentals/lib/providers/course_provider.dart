@@ -1,4 +1,3 @@
-
 import 'package:flutter/foundation.dart';
 
 import '../models/course.dart';
@@ -8,6 +7,10 @@ class CourseState extends ChangeNotifier {
   final CourseRepository repository;
 
   CourseState(this.repository);
+
+  List<Course> courses = [];
+  bool isLoading = false;
+  String? error;
 
   final Set<String> _favorites = <String>{};
 
@@ -20,10 +23,24 @@ class CourseState extends ChangeNotifier {
   List<Course> favoriteCourses(List<Course> courses) {
     return courses
         .where(
-          (course) =>
-              _favorites.contains(course.id?.toString() ?? course.code),
+          (course) => _favorites.contains(course.id?.toString() ?? course.code),
         )
         .toList();
+  }
+
+  Future<void> loadCourses() async {
+    isLoading = true;
+    error = null;
+    notifyListeners();
+
+    try {
+      courses = await repository.getCourses();
+    } catch (e) {
+      error = 'Gagal memuat data course: $e';
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<List<Course>> getCourses() {

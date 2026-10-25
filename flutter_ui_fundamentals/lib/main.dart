@@ -1,66 +1,27 @@
-﻿
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'models/course.dart';
 import 'providers/course_provider.dart';
 import 'repositories/course_repository.dart';
 import 'services/course_service.dart';
-
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'widgets/error_view.dart';
 
 const String studentName = 'I Ketut Guntur Putra Dangin';
 const String studentId = '2415051056';
 
-
-// Endpoint REST API untuk Tahap 2
-const String apiUrl =
-    'https://course-api-pearl.vercel.app/endpoint-salah';
-
-// Fungsi HTTP GET untuk menguji pengambilan data JSON
-Future<List<dynamic>> fetchCourses() async {
-  final response = await http.get(Uri.parse(apiUrl));
-
-  debugPrint('HTTP Status Code: ${response.statusCode}');
-
-  if (response.statusCode == 200) {
-    final data = jsonDecode(response.body) as List<dynamic>;
-
-    debugPrint('Nama: $studentName');
-    debugPrint('NIM: $studentId');
-    debugPrint('Jumlah mata kuliah dari API: ${data.length}');
-
-    return data;
-  }
-
-  throw Exception('HTTP ${response.statusCode}');
-}
-
-// Pengujian HTTP GET untuk Tahap 2
-Future<void> testFetchCourses() async {
-  try {
-    final courses = await fetchCourses();
-    debugPrint('HTTP GET berhasil: ${courses.length} data diterima.');
-  } catch (e) {
-    debugPrint('Gagal mengambil data: $e');
-  }
-}
-
-
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  testFetchCourses();
 
   runApp(
     ChangeNotifierProvider(
-      create: (_) => CourseState(CourseRepository(CourseService())),
+      create: (_) =>
+          CourseState(CourseRepository(CourseService()))..loadCourses(),
       child: const CourseExplorerApp(),
     ),
   );
 }
 
-// APLIKASI UTAMA
 class CourseExplorerApp extends StatelessWidget {
   const CourseExplorerApp({super.key});
 
@@ -92,7 +53,6 @@ class CourseExplorerApp extends StatelessWidget {
   }
 }
 
-// NAVIGASI RESPONSIF DAN PEMUATAN DATA
 class MainResponsiveShell extends StatefulWidget {
   const MainResponsiveShell({super.key});
 
@@ -104,14 +64,6 @@ class _MainResponsiveShellState extends State<MainResponsiveShell> {
   int selectedIndex = 0;
 
   final ValueNotifier<int> counter = ValueNotifier<int>(0);
-
-  late Future<List<Course>> coursesFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    coursesFuture = context.read<CourseState>().getCourses();
-  }
 
   @override
   void dispose() {
@@ -152,43 +104,32 @@ class _MainResponsiveShellState extends State<MainResponsiveShell> {
           ),
         ],
       ),
-      body: FutureBuilder<List<Course>>(
-        future: coursesFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      body: Consumer<CourseState>(
+        builder: (context, state, child) {
+          if (state.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError) {
-            return Center(
+          if (state.error != null) {
+            return ErrorView(message: state.error!, onRetry: state.loadCourses);
+          }
+
+          if (state.courses.isEmpty) {
+            return const Center(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.error_outline,
+                    Icon(
+                      Icons.menu_book_outlined,
                       size: 48,
-                      color: Colors.red,
+                      color: Colors.grey,
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Data mata kuliah gagal dimuat.',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text('${snapshot.error}', textAlign: TextAlign.center),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          coursesFuture = context
-                              .read<CourseState>()
-                              .getCourses();
-                        });
-                      },
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Coba Lagi'),
+                    SizedBox(height: 12),
+                    Text(
+                      'Data course belum tersedia',
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
@@ -196,7 +137,7 @@ class _MainResponsiveShellState extends State<MainResponsiveShell> {
             );
           }
 
-          final List<Course> courses = snapshot.data ?? <Course>[];
+          final List<Course> courses = state.courses;
 
           final List<Widget> pages = [
             HomePage(
@@ -274,6 +215,7 @@ class _MainResponsiveShellState extends State<MainResponsiveShell> {
 }
 
 // DASHBOARD
+
 class HomePage extends StatelessWidget {
   final List<Course> courses;
   final ValueNotifier<int> counter;
@@ -292,7 +234,7 @@ class HomePage extends StatelessWidget {
 
     final int totalCredits = courses.fold<int>(
       0,
-      (int sum, Course course) => sum + course.credits,
+      (sum, course) => sum + course.credits,
     );
 
     return ListView(
@@ -343,6 +285,7 @@ class HomePage extends StatelessWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             final int columns = constraints.maxWidth >= 650 ? 3 : 1;
+
             final double cardWidth =
                 (constraints.maxWidth - (columns - 1) * 12) / columns;
 
@@ -458,6 +401,7 @@ class HomePage extends StatelessWidget {
 }
 
 // HALAMAN DAFTAR MATA KULIAH
+
 class CoursesPage extends StatefulWidget {
   final List<Course> courses;
 
@@ -534,6 +478,7 @@ class _CoursesPageState extends State<CoursesPage> {
 }
 
 // KARTU MATA KULIAH
+
 class CourseCard extends StatefulWidget {
   final Course course;
 
@@ -595,7 +540,7 @@ class _CourseCardState extends State<CourseCard> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text('${course.credits} SKS Ã¢â‚¬Â¢ ${course.category}'),
+                      Text('${course.credits} SKS • ${course.category}'),
                     ],
                   ),
                 ),
@@ -605,8 +550,8 @@ class _CourseCardState extends State<CourseCard> {
                       : 'Tambahkan ke favorit',
                   onPressed: () {
                     context.read<CourseState>().toggleFavorite(
-                  course.id?.toString() ?? course.code,
-                  );
+                      course.id?.toString() ?? course.code,
+                    );
                   },
                   icon: Icon(
                     isFavorite ? Icons.favorite : Icons.favorite_border,
@@ -664,6 +609,7 @@ class _CourseCardState extends State<CourseCard> {
 }
 
 // HALAMAN PROFIL
+
 class ProfilePage extends StatelessWidget {
   final List<Course> courses;
 
@@ -708,10 +654,10 @@ class ProfilePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.school_outlined),
-                  title: const Text('Program Studi'),
-                  subtitle: const Text('Pendidikan Teknik Informatika'),
+                const ListTile(
+                  leading: Icon(Icons.school_outlined),
+                  title: Text('Program Studi'),
+                  subtitle: Text('Pendidikan Teknik Informatika'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.menu_book_outlined),
@@ -740,6 +686,7 @@ class ProfilePage extends StatelessWidget {
 }
 
 // KARTU STATISTIK
+
 class DashboardStatCard extends StatelessWidget {
   final double width;
   final String title;
@@ -799,6 +746,7 @@ class DashboardStatCard extends StatelessWidget {
 }
 
 // TAMPILAN KOSONG
+
 class EmptyCoursesCard extends StatelessWidget {
   const EmptyCoursesCard({super.key});
 
@@ -821,4 +769,3 @@ class EmptyCoursesCard extends StatelessWidget {
     );
   }
 }
-
