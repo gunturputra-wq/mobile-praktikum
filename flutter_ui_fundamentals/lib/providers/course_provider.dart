@@ -1,5 +1,4 @@
-﻿
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 
 import '../models/course.dart';
 import '../repositories/course_repository.dart';
@@ -23,23 +22,81 @@ class CourseState extends ChangeNotifier {
 
   List<Course> favoriteCourses(List<Course> courses) {
     return courses
-        .where(
-          (course) =>
-              _favorites.contains(course.code),
-        )
+        .where((course) => _favorites.contains(course.code))
         .toList();
   }
 
-  // HTTP GET: mengambil daftar course
+  String _friendlyError(Object exception) {
+    final details = exception.toString().toLowerCase();
+
+    if (details.contains('socketexception') ||
+        details.contains('failed host lookup') ||
+        details.contains('failed to fetch') ||
+        details.contains('clientexception') ||
+        details.contains('network is unreachable') ||
+        details.contains('connection refused') ||
+        details.contains('connection reset')) {
+      return 'Koneksi internet bermasalah. '
+          'Periksa koneksi lalu tekan Coba Lagi.';
+    }
+
+    if (details.contains('404') || details.contains('not found')) {
+      return 'Data atau endpoint tidak ditemukan (HTTP 404). '
+          'Periksa konfigurasi layanan.';
+    }
+
+    if (details.contains('42501') ||
+        details.contains('permission denied') ||
+        details.contains('row-level security') ||
+        details.contains('unauthorized') ||
+        details.contains('403') ||
+        details.contains('401')) {
+      return 'Akses data ditolak. Periksa izin akses '
+          'dan kebijakan keamanan Supabase.';
+    }
+
+    if (details.contains('23505') ||
+        details.contains('duplicate key') ||
+        details.contains('unique constraint')) {
+      return 'Data duplikat. Gunakan nilai yang belum tersedia.';
+    }
+
+    if (details.contains('23502') ||
+        details.contains('not-null constraint')) {
+      return 'Ada kolom wajib yang belum diisi.';
+    }
+
+    if (details.contains('22p02') ||
+        details.contains('invalid input syntax')) {
+      return 'Format salah satu nilai tidak sesuai dengan '
+          'tipe data yang diperlukan.';
+    }
+
+    if (exception is FormatException ||
+        details.contains('typeerror') ||
+        details.contains('type cast') ||
+        details.contains('json')) {
+      return 'Format data tidak sesuai. Periksa struktur '
+          'data yang diterima.';
+    }
+
+    return 'Terjadi kesalahan saat memproses data. '
+        'Silakan coba lagi.';
+  }
+
+  // HTTP GET: memuat daftar course.
   Future<void> loadCourses() async {
+    if (isLoading) return;
+
     isLoading = true;
     error = null;
     notifyListeners();
 
     try {
-      courses = await repository.getCourses();
+      final result = await repository.getCourses();
+      courses = result;
     } catch (e) {
-      error = 'Gagal memuat data course: $e';
+      error = _friendlyError(e);
     } finally {
       isLoading = false;
       notifyListeners();
@@ -50,7 +107,7 @@ class CourseState extends ChangeNotifier {
     return repository.getCourses();
   }
 
-  // Mengubah status favorit
+  // Favorit dikelola di dalam aplikasi.
   void toggleFavorite(String code) {
     if (_favorites.contains(code)) {
       _favorites.remove(code);
@@ -61,66 +118,56 @@ class CourseState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // HTTP POST: menambahkan course baru
+  // HTTP POST: menambahkan course.
   Future<Course> createCourse(Course course) async {
     try {
       final createdCourse = await repository.createCourse(course);
-
       courses = await repository.getCourses();
-
       error = null;
       notifyListeners();
-
       return createdCourse;
     } catch (e) {
-      error = 'Gagal menambahkan course: $e';
+      error = _friendlyError(e);
       notifyListeners();
       rethrow;
     }
   }
-  // HTTP PUT: memperbarui course
+
+  // HTTP PUT/PATCH: memperbarui course.
   Future<void> updateCourse(int id, Course updatedCourse) async {
     try {
       await repository.updateCourse(id, updatedCourse);
-
       courses = await repository.getCourses();
-
       error = null;
       notifyListeners();
     } catch (e) {
-      error = 'Gagal memperbarui course: $e';
+      error = _friendlyError(e);
       notifyListeners();
       rethrow;
     }
   }
 
-  // HTTP DELETE: menghapus course
+  // HTTP DELETE: menghapus course.
   Future<void> deleteCourse(int id) async {
-    final deletedCourses = courses
-        .where((course) => course.id == id)
-        .toList();
+    final deletedCourses =
+        courses.where((course) => course.id == id).toList();
 
     try {
       await repository.deleteCourse(id);
 
-      // Hapus favorit berdasarkan ID dan kode course.
       _favorites.remove(id.toString());
 
       for (final course in deletedCourses) {
         _favorites.remove(course.code);
       }
 
-      // Perbarui daftar course dari server.
       courses = await repository.getCourses();
-
       error = null;
       notifyListeners();
     } catch (e) {
-      error = 'Gagal menghapus course: $e';
+      error = _friendlyError(e);
       notifyListeners();
       rethrow;
     }
   }
 }
-
-
