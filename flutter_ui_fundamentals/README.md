@@ -1,40 +1,68 @@
-## Tahap 1 — Membaca REST Endpoint dan JSON
+﻿# Course Explorer
 
-### Informasi REST Endpoint
+Course Explorer adalah aplikasi Flutter untuk menampilkan dan mengelola data mata kuliah melalui operasi CRUD dengan backend Supabase.
 
-- **Nama endpoint:** List courses
-- **URL:** `https://course-api-pearl.vercel.app/courses`
-- **HTTP Method:** GET
-- **Fungsi:** Mengambil seluruh data mata kuliah dari REST API.
-- **Format respons:** JSON berupa array objek mata kuliah.
-- **Status code yang diharapkan:** 200 OK.
+## Fitur
+- Menampilkan daftar mata kuliah.
+- Menambahkan mata kuliah.
+- Memperbarui data mata kuliah.
+- Menghapus mata kuliah.
+- Menangani loading dan error.
+- Mengelola state menggunakan Provider.
 
-### Struktur JSON
+## Teknologi
+- Flutter dan Dart
+- Material Design 3
+- Provider
+- Supabase
+- Git dan GitHub
 
-Respons API memiliki enam field utama:
+## Persyaratan
+- Flutter SDK
+- Browser Chrome atau perangkat yang mendukung Flutter
+- Proyek Supabase yang telah dikonfigurasi
 
-| Field | Tipe Data | Keterangan |
-|---|---|---|
-| `id` | Integer | ID unik mata kuliah |
-| `code` | String | Kode mata kuliah |
-| `title` | String | Nama mata kuliah |
-| `credits` | Integer | Jumlah SKS |
-| `status` | String | Status mata kuliah |
-| `created_at` | String | Waktu pembuatan data dalam format ISO 8601 |
+## Cara Menjalankan
 
-### Contoh Respons JSON
+Instal dependensi:
 
-```json
-{
-  "id": 3,
-  "code": "MOB03",
-  "title": "Flutter Widgets & Layout",
-  "credits": 3,
-  "status": "planned",
-  "created_at": "2026-10-21T03:28:09.361747Z"
-}
+```bash
+flutter pub get
 ```
 
-### Hasil Pengamatan
+Jalankan aplikasi menggunakan konfigurasi Supabase:
 
-Endpoint berhasil menampilkan daftar mata kuliah dalam format JSON. Data yang terlihat terdiri dari 10 objek mata kuliah dengan kode, nama, jumlah SKS, status, dan waktu pembuatan masing-masing. Data ini akan menjadi acuan untuk memahami struktur model Course pada aplikasi Flutter.
+```powershell
+flutter run -d chrome --dart-define=SUPABASE_URL=URL_SUPABASE_ANDA --dart-define=SUPABASE_PUBLISHABLE_KEY=PUBLISHABLE_KEY_ANDA
+```
+
+Ganti nilai URL dan publishable key dengan konfigurasi proyek Supabase milikmu. Jangan menggunakan service role key di aplikasi klien.
+
+Periksa kualitas kode dan pengujian:
+
+```bash
+flutter analyze
+flutter test
+```
+
+## Arsitektur
+
+- **Models:** mendefinisikan struktur data mata kuliah.
+- **Services:** menangani komunikasi dengan backend.
+- **Repositories:** menjadi perantara antara provider dan layanan data.
+- **Providers:** mengelola state dan operasi data.
+- **UI:** menampilkan data serta menerima interaksi pengguna.
+
+Alur data:
+
+`UI -> Provider -> Repository -> Service -> Supabase`
+
+## Backend
+
+Supabase digunakan sebagai backend dan database untuk operasi CRUD. Pastikan tabel, hak akses, dan kebijakan Row Level Security (RLS) dikonfigurasi dengan benar.
+
+Konfigurasi URL dan publishable key diberikan saat menjalankan aplikasi melalui `--dart-define`, bukan ditulis sebagai credential rahasia di source code.
+
+## Repository GitHub
+
+https://github.com/gunturputra-wq/mobile-praktikum
