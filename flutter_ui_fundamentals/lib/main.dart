@@ -1,4 +1,4 @@
-
+﻿
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -678,7 +678,7 @@ class _CourseCardState extends State<CourseCard> {
 
     final bool isFavorite = context.select<CourseState, bool>(
       (state) => state.isFavorite(
-        course.id?.toString() ?? course.code,
+        course.code,
       ),
     );
 
@@ -724,7 +724,7 @@ class _CourseCardState extends State<CourseCard> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        '${course.credits} SKS â€¢ ${course.category}',
+                        '${course.credits} SKS Ã¢â‚¬Â¢ ${course.category}',
                       ),
                     ],
                   ),
@@ -735,7 +735,7 @@ class _CourseCardState extends State<CourseCard> {
                       : 'Tambahkan ke favorit',
                   onPressed: () {
                     context.read<CourseState>().toggleFavorite(
-                      course.id?.toString() ?? course.code,
+                      course.code,
                     );
                   },
                   icon: Icon(
@@ -1432,3 +1432,4 @@ class EmptyCoursesCard extends StatelessWidget {
     );
   }
 }
+

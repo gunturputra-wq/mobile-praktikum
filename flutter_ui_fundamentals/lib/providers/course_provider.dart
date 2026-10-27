@@ -25,7 +25,7 @@ class CourseState extends ChangeNotifier {
     return courses
         .where(
           (course) =>
-              _favorites.contains(course.id?.toString() ?? course.code),
+              _favorites.contains(course.code),
         )
         .toList();
   }
@@ -122,4 +122,5 @@ class CourseState extends ChangeNotifier {
     }
   }
 }
+
 
