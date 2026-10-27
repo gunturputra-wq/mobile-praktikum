@@ -1,4 +1,4 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+﻿import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/course.dart';
 import 'course_data_source.dart';
@@ -27,8 +27,14 @@ class CourseSupabaseService implements CourseDataSource {
 
   @override
   Future<Course> createCourse(Course course) async {
-    throw UnimplementedError(
-      'Create course belum diimplementasikan.',
+    final row = await supabase
+        .from('courses')
+        .insert(course.toJson())
+        .select()
+        .single();
+
+    return Course.fromJson(
+      Map<String, dynamic>.from(row),
     );
   }
 

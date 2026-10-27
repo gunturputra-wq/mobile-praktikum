@@ -1,4 +1,4 @@
-﻿
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -475,6 +475,20 @@ class CoursesPage extends StatefulWidget {
 
 class _CoursesPageState extends State<CoursesPage> {
   String searchQuery = '';
+  Future<void> _showCreateCourseDialog() async {
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (_) => const CreateCourseDialog(),
+    );
+
+    if (!mounted || created != true) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Mata kuliah berhasil ditambahkan.'),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -499,7 +513,16 @@ class _CoursesPageState extends State<CoursesPage> {
           ),
         ),
         const SizedBox(height: 8),
-        Text('${widget.courses.length} mata kuliah tersedia'),
+Text('${widget.courses.length} mata kuliah tersedia'),
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton.icon(
+            onPressed: _showCreateCourseDialog,
+            icon: const Icon(Icons.add),
+            label: const Text('Tambah Mata Kuliah'),
+          ),
+        ),
         const SizedBox(height: 18),
         TextField(
           onChanged: (value) {
@@ -701,7 +724,7 @@ class _CourseCardState extends State<CourseCard> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        '${course.credits} SKS • ${course.category}',
+                        '${course.credits} SKS â€¢ ${course.category}',
                       ),
                     ],
                   ),
@@ -1006,6 +1029,220 @@ class _EditCourseDialogState extends State<EditCourseDialog> {
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                   ),
+                )
+              : const Text('Simpan'),
+        ),
+      ],
+    );
+  }
+}
+
+
+// FORM TAMBAH MATA KULIAH
+
+class CreateCourseDialog extends StatefulWidget {
+  const CreateCourseDialog({super.key});
+
+  @override
+  State<CreateCourseDialog> createState() => _CreateCourseDialogState();
+}
+
+class _CreateCourseDialogState extends State<CreateCourseDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _codeController = TextEditingController();
+  final _titleController = TextEditingController();
+  final _creditsController = TextEditingController();
+  final _categoryController = TextEditingController();
+  final _descriptionController = TextEditingController();
+
+  String _status = 'planned';
+  bool _isSubmitting = false;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    _titleController.dispose();
+    _creditsController.dispose();
+    _categoryController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_isSubmitting ||
+        !_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final code = _codeController.text.trim();
+    final state = context.read<CourseState>();
+
+    final duplicate = state.courses.any(
+      (course) => course.code.toLowerCase() == code.toLowerCase(),
+    );
+
+    if (duplicate) {
+      setState(() {
+        _errorMessage = 'Kode mata kuliah sudah digunakan.';
+      });
+      return;
+    }
+
+    final course = Course(
+      code: code,
+      title: _titleController.text.trim(),
+      credits: int.parse(_creditsController.text.trim()),
+      category: _categoryController.text.trim(),
+      status: _status,
+      description: _descriptionController.text.trim(),
+    );
+
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await context.read<CourseState>().createCourse(course);
+
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _errorMessage = 'Gagal menambahkan mata kuliah: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Tambah Mata Kuliah'),
+      content: SizedBox(
+        width: 450,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _codeController,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(
+                    labelText: 'Kode Mata Kuliah',
+                    hintText: 'Contoh: PTI101',
+                  ),
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty
+                          ? 'Kode mata kuliah wajib diisi'
+                          : null,
+                ),
+                TextFormField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama Mata Kuliah',
+                  ),
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty
+                          ? 'Nama mata kuliah wajib diisi'
+                          : null,
+                ),
+                TextFormField(
+                  controller: _creditsController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Jumlah SKS',
+                  ),
+                  validator: (value) {
+                    final credits = int.tryParse(value?.trim() ?? '');
+
+                    if (credits == null || credits <= 0) {
+                      return 'Masukkan jumlah SKS yang valid';
+                    }
+
+                    return null;
+                  },
+                ),
+                TextFormField(
+                  controller: _categoryController,
+                  decoration: const InputDecoration(
+                    labelText: 'Kategori',
+                  ),
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty
+                          ? 'Kategori wajib diisi'
+                          : null,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _status,
+                  decoration: const InputDecoration(
+                    labelText: 'Status',
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'planned',
+                      child: Text('Planned'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'active',
+                      child: Text('Active'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'done',
+                      child: Text('Done'),
+                    ),
+                  ],
+                  onChanged: _isSubmitting
+                      ? null
+                      : (value) {
+                          if (value != null) {
+                            setState(() => _status = value);
+                          }
+                        },
+                ),
+                TextFormField(
+                  controller: _descriptionController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Deskripsi',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSubmitting
+              ? null
+              : () => Navigator.of(context).pop(false),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: _isSubmitting ? null : _save,
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Simpan'),
         ),

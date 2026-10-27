@@ -1,3 +1,4 @@
+
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
@@ -12,11 +13,12 @@ class CourseService {
 
     final dynamic decoded = jsonDecode(jsonString);
 
-    List<dynamic> jsonList;
+    final List<dynamic> jsonList;
 
-    if (decoded is List) {
+    if (decoded is List<dynamic>) {
       jsonList = decoded;
-    } else if (decoded is Map<String, dynamic> && decoded['courses'] is List) {
+    } else if (decoded is Map<String, dynamic> &&
+        decoded['courses'] is List<dynamic>) {
       jsonList = decoded['courses'] as List<dynamic>;
     } else {
       throw const FormatException(

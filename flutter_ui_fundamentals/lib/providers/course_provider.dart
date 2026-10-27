@@ -1,4 +1,4 @@
-
+﻿
 import 'package:flutter/foundation.dart';
 
 import '../models/course.dart';
@@ -61,6 +61,23 @@ class CourseState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // HTTP POST: menambahkan course baru
+  Future<Course> createCourse(Course course) async {
+    try {
+      final createdCourse = await repository.createCourse(course);
+
+      courses = await repository.getCourses();
+
+      error = null;
+      notifyListeners();
+
+      return createdCourse;
+    } catch (e) {
+      error = 'Gagal menambahkan course: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
   // HTTP PUT: memperbarui course
   Future<void> updateCourse(int id, Course updatedCourse) async {
     try {
@@ -105,3 +122,4 @@ class CourseState extends ChangeNotifier {
     }
   }
 }
+
