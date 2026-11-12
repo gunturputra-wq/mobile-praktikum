@@ -1,4 +1,3 @@
-
 class Course {
   final int? id;
   final String code;
@@ -18,6 +17,7 @@ class Course {
     this.description = '',
   });
 
+  // Mendukung fromJson
   factory Course.fromJson(Map<String, dynamic> json) {
     final dynamic rawId = json['id'];
     final dynamic rawCredits = json['credits'];
@@ -27,8 +27,7 @@ class Course {
           ? null
           : int.tryParse(rawId.toString()),
       code: json['code']?.toString() ?? '',
-      title: json['title']?.toString() ??
-          'Mata Kuliah Tanpa Nama',
+      title: json['title']?.toString() ?? 'Mata Kuliah Tanpa Nama',
       credits: rawCredits is num
           ? rawCredits.toInt()
           : int.tryParse(rawCredits?.toString() ?? '') ?? 0,
@@ -37,6 +36,9 @@ class Course {
       description: json['description']?.toString() ?? '',
     );
   }
+
+  // Alias fromMap agar kompatibel jika service memanggil fromMap
+  factory Course.fromMap(Map<String, dynamic> map) => Course.fromJson(map);
 
   Map<String, dynamic> toJson() {
     return {

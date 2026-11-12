@@ -1,5 +1,4 @@
-﻿
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -13,24 +12,19 @@ import 'widgets/error_view.dart';
 const String studentName = 'I Ketut Guntur Putra Dangin';
 const String studentId = '2415051056';
 
+/// Key global agar navigasi/snackbar bisa dipanggil dari luar widget (misalnya untuk Auth state change / Session logout)
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<ScaffoldMessengerState> messengerKey = GlobalKey<ScaffoldMessengerState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
-    url: SupabaseConfig.url,
-    publishableKey: SupabaseConfig.publishableKey,
+    url: 'https://genbvfarqheeshjikngk.supabase.co',
+    publishableKey: 'sb_publishable_S859tk3ygOY25Sz8oMBt6Q_OamfRnOO', // atau anonKey
   );
 
-  runApp(
-    ChangeNotifierProvider(
-      create: (_) => CourseState(
-        CourseRepository(
-          CourseSupabaseService(),
-        ),
-      )..loadCourses(),
-      child: const CourseExplorerApp(),
-    ),
-  );
+  runApp(const CourseExplorerApp());
 }
 
 class CourseExplorerApp extends StatelessWidget {
@@ -38,9 +32,14 @@ class CourseExplorerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Mengecek apakah user sudah memiliki session/login sebelumnya
+    final bool isLoggedIn = Supabase.instance.client.auth.currentSession != null;
+
     return MaterialApp(
       title: 'Course Explorer',
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
+      scaffoldMessengerKey: messengerKey,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -63,12 +62,319 @@ class CourseExplorerApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const MainResponsiveShell(),
+      // Jika sudah login langsung ke MainResponsiveShell, jika belum ke LoginPage
+      home: isLoggedIn ? const MainResponsiveShellWrapper() : const LoginPage(),
     );
   }
 }
 
+/// Wrapper untuk menyediakan ChangeNotifierProvider setelah user berhasil login
+class MainResponsiveShellWrapper extends StatelessWidget {
+  const MainResponsiveShellWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => CourseState(
+        CourseRepository(
+          CourseSupabaseService(),
+        ),
+      )..loadCourses(),
+      child: const MainResponsiveShell(),
+    );
+  }
+}
+
+// ==========================================
+// HALAMAN LOGIN & REGISTER (Sesuai Worksheet 9)
+// ==========================================
+
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailC = TextEditingController();
+  final _passC = TextEditingController();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _emailC.dispose();
+    _passC.dispose();
+    super.dispose();
+  }
+
+  /// Menampilkan Alert Dialog untuk peringatan login
+  void _showAlert(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(
+          Icons.error_outline_rounded,
+          color: Colors.redAccent,
+          size: 40,
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Mengerti'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _loading = true);
+
+    try {
+      await Supabase.instance.client.auth.signInWithPassword(
+        email: _emailC.text.trim(),
+        password: _passC.text,
+      );
+      if (!mounted) return;
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainResponsiveShellWrapper()),
+        (route) => false,
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+
+      String pesanError = 'Terjadi kesalahan saat login. Silakan coba lagi.';
+      if (e.message.contains('Invalid login credentials')) {
+        pesanError = 'Maaf, password atau email yang Anda masukkan salah.';
+      } else if (e.message.contains('Email not confirmed')) {
+        pesanError = 'Email Anda belum diverifikasi. Silakan periksa kotak masuk email Anda.';
+      }
+
+      _showAlert('Login Gagal', pesanError);
+    } catch (_) {
+      if (!mounted) return;
+      _showAlert(
+        'Koneksi Bermasalah',
+        'Terjadi kesalahan. Periksa koneksi internet Anda.',
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Login Course Explorer')),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              const SizedBox(height: 40),
+              const Icon(Icons.school_rounded, size: 64, color: Color(0xFF4F46E5)),
+              const SizedBox(height: 20),
+              const Text(
+                'Selamat Datang Kembali!',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 30),
+              TextFormField(
+                controller: _emailC,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Email wajib diisi' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passC,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                validator: (v) => (v == null || v.isEmpty) ? 'Password wajib diisi' : null,
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: _loading ? null : _login,
+                child: _loading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Login', style: TextStyle(fontSize: 16)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const RegisterPage()),
+                ),
+                child: const Text('Belum punya akun? Register'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
+
+  @override
+  State<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends State<RegisterPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailC = TextEditingController();
+  final _passC = TextEditingController();
+  final _confirmC = TextEditingController();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _emailC.dispose();
+    _passC.dispose();
+    _confirmC.dispose();
+    super.dispose();
+  }
+
+  void _showMessage(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _loading = true);
+
+    try {
+      final res = await Supabase.instance.client.auth.signUp(
+        email: _emailC.text.trim(),
+        password: _passC.text,
+      );
+      if (!mounted) return;
+
+      if (res.session != null) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const MainResponsiveShellWrapper()),
+          (route) => false,
+        );
+      } else {
+        _showMessage('Registrasi berhasil. Silakan cek email Anda.');
+        Navigator.of(context).pop();
+      }
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      String pesanError = e.message;
+      if (e.message.contains('User already registered')) {
+        pesanError = 'Email ini sudah terdaftar. Silakan langsung login.';
+      }
+      _showMessage(pesanError);
+    } catch (_) {
+      _showMessage('Terjadi kesalahan. Coba lagi.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Register Akun Baru')),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              TextFormField(
+                controller: _emailC,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Email wajib diisi';
+                  if (!v.contains('@')) return 'Format email tidak valid';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passC,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Password wajib diisi';
+                  if (v.length < 6) return 'Minimal 6 karakter';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _confirmC,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Konfirmasi Password',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                validator: (v) => v != _passC.text ? 'Password tidak sama' : null,
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: _loading ? null : _register,
+                child: _loading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Register', style: TextStyle(fontSize: 16)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================
 // RESPONSIVE SHELL
+// ==========================================
 
 class MainResponsiveShell extends StatefulWidget {
   const MainResponsiveShell({super.key});
@@ -87,6 +393,15 @@ class _MainResponsiveShellState
   void dispose() {
     counter.dispose();
     super.dispose();
+  }
+
+  Future<void> _logout() async {
+    await Supabase.instance.client.auth.signOut();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+      (route) => false,
+    );
   }
 
   @override
@@ -113,7 +428,7 @@ class _MainResponsiveShellState
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 20),
+            padding: const EdgeInsets.only(right: 12),
             child: Center(
               child: Consumer<CourseState>(
                 builder: (context, state, child) {
@@ -127,6 +442,11 @@ class _MainResponsiveShellState
                 },
               ),
             ),
+          ),
+          IconButton(
+            tooltip: 'Logout',
+            icon: const Icon(Icons.logout, color: Colors.redAccent),
+            onPressed: _logout,
           ),
         ],
       ),
@@ -248,7 +568,9 @@ class _MainResponsiveShellState
   }
 }
 
+// ==========================================
 // DASHBOARD
+// ==========================================
 
 class HomePage extends StatelessWidget {
   final List<Course> courses;
@@ -272,6 +594,8 @@ class HomePage extends StatelessWidget {
       (sum, course) => sum + course.credits,
     );
 
+    final currentUserEmail = Supabase.instance.client.auth.currentUser?.email ?? '-';
+
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -286,16 +610,16 @@ class HomePage extends StatelessWidget {
             ),
             borderRadius: BorderRadius.circular(24),
           ),
-          child: const Column(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
+              const Icon(
                 Icons.waving_hand_rounded,
                 color: Colors.white,
                 size: 34,
               ),
-              SizedBox(height: 16),
-              Text(
+              const SizedBox(height: 16),
+              const Text(
                 'Selamat Datang!',
                 style: TextStyle(
                   color: Colors.white,
@@ -303,23 +627,28 @@ class HomePage extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              SizedBox(height: 8),
-              Text(
+              const SizedBox(height: 8),
+              const Text(
                 studentName,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
                 ),
               ),
-              SizedBox(height: 4),
-              Text(
+              const SizedBox(height: 4),
+              const Text(
                 'NIM: $studentId',
                 style: TextStyle(
                   color: Colors.white70,
                 ),
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 4),
               Text(
+                'Email: $currentUserEmail',
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              const Text(
                 'Pendidikan Teknik Informatika',
                 style: TextStyle(color: Colors.white),
               ),
@@ -459,7 +788,9 @@ class HomePage extends StatelessWidget {
   }
 }
 
+// ==========================================
 // HALAMAN DAFTAR MATA KULIAH
+// ==========================================
 
 class CoursesPage extends StatefulWidget {
   final List<Course> courses;
@@ -475,6 +806,7 @@ class CoursesPage extends StatefulWidget {
 
 class _CoursesPageState extends State<CoursesPage> {
   String searchQuery = '';
+  
   Future<void> _showCreateCourseDialog() async {
     final created = await showDialog<bool>(
       context: context,
@@ -513,7 +845,7 @@ class _CoursesPageState extends State<CoursesPage> {
           ),
         ),
         const SizedBox(height: 8),
-Text('${widget.courses.length} mata kuliah tersedia'),
+        Text('${widget.courses.length} mata kuliah tersedia'),
         const SizedBox(height: 12),
         Align(
           alignment: Alignment.centerRight,
@@ -573,7 +905,9 @@ Text('${widget.courses.length} mata kuliah tersedia'),
   }
 }
 
+// ==========================================
 // KARTU MATA KULIAH
+// ==========================================
 
 class CourseCard extends StatefulWidget {
   final Course course;
@@ -724,7 +1058,7 @@ class _CourseCardState extends State<CourseCard> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        '${course.credits} SKS Ã¢â‚¬Â¢ ${course.category}',
+                        '${course.credits} SKS • ${course.category}',
                       ),
                     ],
                   ),
@@ -814,7 +1148,9 @@ class _CourseCardState extends State<CourseCard> {
   }
 }
 
+// ==========================================
 // FORM EDIT MATA KULIAH
+// ==========================================
 
 class EditCourseDialog extends StatefulWidget {
   final Course course;
@@ -1037,8 +1373,9 @@ class _EditCourseDialogState extends State<EditCourseDialog> {
   }
 }
 
-
+// ==========================================
 // FORM TAMBAH MATA KULIAH
+// ==========================================
 
 class CreateCourseDialog extends StatefulWidget {
   const CreateCourseDialog({super.key});
@@ -1242,7 +1579,9 @@ class _CreateCourseDialogState extends State<CreateCourseDialog> {
               ? const SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                  ),
                 )
               : const Text('Simpan'),
         ),
@@ -1251,7 +1590,9 @@ class _CreateCourseDialogState extends State<CreateCourseDialog> {
   }
 }
 
+// ==========================================
 // HALAMAN PROFIL
+// ==========================================
 
 class ProfilePage extends StatelessWidget {
   final List<Course> courses;
@@ -1263,6 +1604,8 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserEmail = Supabase.instance.client.auth.currentUser?.email ?? '-';
+
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -1299,6 +1642,8 @@ class ProfilePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 const Text('NIM: $studentId'),
+                const SizedBox(height: 4),
+                Text('Email: $currentUserEmail', style: const TextStyle(color: Colors.grey)),
                 const SizedBox(height: 6),
                 const Text(
                   'Pendidikan Teknik Informatika',
@@ -1341,7 +1686,9 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
+// ==========================================
 // KARTU STATISTIK
+// ==========================================
 
 class DashboardStatCard extends StatelessWidget {
   final double width;
@@ -1404,7 +1751,9 @@ class DashboardStatCard extends StatelessWidget {
   }
 }
 
+// ==========================================
 // TAMPILAN KOSONG
+// ==========================================
 
 class EmptyCoursesCard extends StatelessWidget {
   const EmptyCoursesCard({super.key});
@@ -1432,4 +1781,3 @@ class EmptyCoursesCard extends StatelessWidget {
     );
   }
 }
-
