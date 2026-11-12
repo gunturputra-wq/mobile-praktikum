@@ -9,6 +9,7 @@ import 'repositories/course_repository.dart';
 import 'services/course_supabase_service.dart';
 import 'services/profile_service.dart';
 import 'widgets/error_view.dart';
+import 'widgets/role_guard.dart';
 
 const String studentName = 'I Ketut Guntur Putra Dangin';
 const String studentId = '2415051056';
@@ -456,7 +457,14 @@ class _MainResponsiveShellState
     return FutureBuilder<UserProfile?>(
       future: _profileFuture,
       builder: (context, profileSnap) {
+        if (profileSnap.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
         final UserProfile? userProfile = profileSnap.data;
+        final String currentRole = userProfile?.role ?? 'seeker';
 
         return Scaffold(
           appBar: AppBar(
@@ -476,22 +484,21 @@ class _MainResponsiveShellState
               ],
             ),
             actions: [
-              if (userProfile != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: Chip(
-                    label: Text(
-                      userProfile.role.toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF4F46E5),
-                      ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Chip(
+                  label: Text(
+                    currentRole.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF4F46E5),
                     ),
-                    backgroundColor: const Color(0xFFEEF2FF),
-                    side: BorderSide.none,
                   ),
+                  backgroundColor: const Color(0xFFEEF2FF),
+                  side: BorderSide.none,
                 ),
+              ),
               Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: Center(
@@ -564,7 +571,10 @@ class _MainResponsiveShellState
                     setState(() => selectedIndex = index);
                   },
                 ),
-                CoursesPage(courses: courses),
+                CoursesPage(
+                  courses: courses,
+                  userRole: currentRole,
+                ),
                 ProfilePage(
                   courses: courses,
                   userProfile: userProfile,
@@ -792,6 +802,21 @@ class HomePage extends StatelessWidget {
           },
         ),
         const SizedBox(height: 24),
+        // Menu khusus Admin (contoh perbedaan menu per role)
+        if (userProfile?.isAdmin ?? false) ...[
+          Card(
+            color: const Color(0xFFEEF2FF),
+            child: const ListTile(
+              leading: Icon(Icons.admin_panel_settings, color: Color(0xFF4F46E5)),
+              title: Text(
+                'Panel Kelola Data (Admin)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text('Akses penuh pengelolaan seluruh data mata kuliah & pengguna.'),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
         Card(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -868,7 +893,10 @@ class HomePage extends StatelessWidget {
         ...courses.take(3).map(
           (course) => Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: CourseCard(course: course),
+            child: CourseCard(
+              course: course,
+              userRole: currentUserRole,
+            ),
           ),
         ),
       ],
@@ -882,10 +910,12 @@ class HomePage extends StatelessWidget {
 
 class CoursesPage extends StatefulWidget {
   final List<Course> courses;
+  final String userRole;
 
   const CoursesPage({
     super.key,
     required this.courses,
+    required this.userRole,
   });
 
   @override
@@ -894,7 +924,7 @@ class CoursesPage extends StatefulWidget {
 
 class _CoursesPageState extends State<CoursesPage> {
   String searchQuery = '';
-  
+
   Future<void> _showCreateCourseDialog() async {
     final created = await showDialog<bool>(
       context: context,
@@ -935,12 +965,17 @@ class _CoursesPageState extends State<CoursesPage> {
         const SizedBox(height: 8),
         Text('${widget.courses.length} mata kuliah tersedia'),
         const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.icon(
-            onPressed: _showCreateCourseDialog,
-            icon: const Icon(Icons.add),
-            label: const Text('Tambah Mata Kuliah'),
+        // Tombol Tambah Mata Kuliah hanya muncul untuk role 'owner' dan 'admin'
+        RoleGuard(
+          role: widget.userRole,
+          allowed: const ['owner', 'admin'],
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: _showCreateCourseDialog,
+              icon: const Icon(Icons.add),
+              label: const Text('Tambah Mata Kuliah'),
+            ),
           ),
         ),
         const SizedBox(height: 18),
@@ -985,7 +1020,10 @@ class _CoursesPageState extends State<CoursesPage> {
           ...filteredCourses.map(
             (course) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: CourseCard(course: course),
+              child: CourseCard(
+                course: course,
+                userRole: widget.userRole,
+              ),
             ),
           ),
       ],
@@ -999,10 +1037,12 @@ class _CoursesPageState extends State<CoursesPage> {
 
 class CourseCard extends StatefulWidget {
   final Course course;
+  final String userRole;
 
   const CourseCard({
     super.key,
     required this.course,
+    required this.userRole,
   });
 
   @override
@@ -1195,18 +1235,28 @@ class _CourseCardState extends State<CourseCard> {
                   ),
                 ),
                 const Spacer(),
-                TextButton.icon(
-                  onPressed: _editCourse,
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Edit'),
-                ),
-                TextButton.icon(
-                  onPressed: _deleteCourse,
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.red,
+                // Tombol Edit dan Delete hanya muncul untuk role 'owner' dan 'admin'
+                RoleGuard(
+                  role: widget.userRole,
+                  allowed: const ['owner', 'admin'],
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton.icon(
+                        onPressed: _editCourse,
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('Edit'),
+                      ),
+                      TextButton.icon(
+                        onPressed: _deleteCourse,
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Delete'),
+                      ),
+                    ],
                   ),
-                  icon: const Icon(Icons.delete_outline),
-                  label: const Text('Delete'),
                 ),
                 TextButton.icon(
                   onPressed: () {
