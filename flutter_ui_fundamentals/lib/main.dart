@@ -24,6 +24,18 @@ Future<void> main() async {
     publishableKey: 'sb_publishable_S859tk3ygOY25Sz8oMBt6Q_OamfRnOO', // atau anonKey
   );
 
+  // Mendengarkan perubahan session (otomatis redirect ke LoginPage jika session berakhir / signedOut)
+  Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    debugPrint('Auth event: ${data.event}');
+
+    if (data.event == AuthChangeEvent.signedOut) {
+      navigatorKey.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
+      );
+    }
+  });
+
   runApp(const CourseExplorerApp());
 }
 
