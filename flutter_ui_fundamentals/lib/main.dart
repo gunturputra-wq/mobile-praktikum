@@ -7,12 +7,12 @@ import 'models/course.dart';
 import 'providers/course_provider.dart';
 import 'repositories/course_repository.dart';
 import 'services/course_supabase_service.dart';
+import 'services/profile_service.dart';
 import 'widgets/error_view.dart';
 
 const String studentName = 'I Ketut Guntur Putra Dangin';
 const String studentId = '2415051056';
 
-/// Key global agar navigasi/snackbar bisa dipanggil dari luar widget (misalnya untuk Auth state change / Session logout)
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<ScaffoldMessengerState> messengerKey = GlobalKey<ScaffoldMessengerState>();
 
@@ -21,10 +21,9 @@ Future<void> main() async {
 
   await Supabase.initialize(
     url: 'https://genbvfarqheeshjikngk.supabase.co',
-    publishableKey: 'sb_publishable_S859tk3ygOY25Sz8oMBt6Q_OamfRnOO', // atau anonKey
+    publishableKey: 'sb_publishable_S859tk3ygOY25Sz8oMBt6Q_OamfRnOO',
   );
 
-  // Mendengarkan perubahan session (otomatis redirect ke LoginPage jika session berakhir / signedOut)
   Supabase.instance.client.auth.onAuthStateChange.listen((data) {
     debugPrint('Auth event: ${data.event}');
 
@@ -44,7 +43,6 @@ class CourseExplorerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Mengecek apakah user sudah memiliki session/login sebelumnya
     final bool isLoggedIn = Supabase.instance.client.auth.currentSession != null;
 
     return MaterialApp(
@@ -74,13 +72,11 @@ class CourseExplorerApp extends StatelessWidget {
           ),
         ),
       ),
-      // Jika sudah login langsung ke MainResponsiveShell, jika belum ke LoginPage
       home: isLoggedIn ? const MainResponsiveShellWrapper() : const LoginPage(),
     );
   }
 }
 
-/// Wrapper untuk menyediakan ChangeNotifierProvider setelah user berhasil login
 class MainResponsiveShellWrapper extends StatelessWidget {
   const MainResponsiveShellWrapper({super.key});
 
@@ -98,7 +94,7 @@ class MainResponsiveShellWrapper extends StatelessWidget {
 }
 
 // ==========================================
-// HALAMAN LOGIN & REGISTER (Sesuai Worksheet 9)
+// HALAMAN LOGIN & REGISTER
 // ==========================================
 
 class LoginPage extends StatefulWidget {
@@ -121,7 +117,6 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  /// Menampilkan Alert Dialog untuk peringatan login
   void _showAlert(String title, String message) {
     showDialog(
       context: context,
@@ -263,13 +258,16 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
+  final _nameC = TextEditingController();
   final _emailC = TextEditingController();
   final _passC = TextEditingController();
   final _confirmC = TextEditingController();
+  String _role = 'seeker';
   bool _loading = false;
 
   @override
   void dispose() {
+    _nameC.dispose();
     _emailC.dispose();
     _passC.dispose();
     _confirmC.dispose();
@@ -288,6 +286,10 @@ class _RegisterPageState extends State<RegisterPage> {
       final res = await Supabase.instance.client.auth.signUp(
         email: _emailC.text.trim(),
         password: _passC.text,
+        data: {
+          'name': _nameC.text.trim(),
+          'role': _role,
+        },
       );
       if (!mounted) return;
 
@@ -324,6 +326,29 @@ class _RegisterPageState extends State<RegisterPage> {
           key: _formKey,
           child: ListView(
             children: [
+              TextFormField(
+                controller: _nameC,
+                decoration: InputDecoration(
+                  labelText: 'Nama Lengkap',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Nama wajib diisi' : null,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: _role,
+                decoration: InputDecoration(
+                  labelText: 'Daftar sebagai',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'seeker', child: Text('Seeker (Mahasiswa / Pencari)')),
+                  DropdownMenuItem(value: 'owner', child: Text('Owner (Dosen / Pemilik)')),
+                ],
+                onChanged: (v) => setState(() => _role = v ?? 'seeker'),
+              ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _emailC,
                 keyboardType: TextInputType.emailAddress,
@@ -400,6 +425,13 @@ class _MainResponsiveShellState
     extends State<MainResponsiveShell> {
   int selectedIndex = 0;
   final ValueNotifier<int> counter = ValueNotifier<int>(0);
+  late final Future<UserProfile?> _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = ProfileService().getMyProfile();
+  }
 
   @override
   void dispose() {
@@ -421,161 +453,188 @@ class _MainResponsiveShellState
     final bool isWide =
         MediaQuery.sizeOf(context).width >= 800;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Row(
-          children: [
-            Icon(
-              Icons.school_rounded,
-              color: Color(0xFF4F46E5),
-            ),
-            SizedBox(width: 10),
-            Text(
-              'Course Explorer',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Center(
-              child: Consumer<CourseState>(
-                builder: (context, state, child) {
-                  return Badge(
-                    isLabelVisible: state.favoriteCount > 0,
-                    label: Text('${state.favoriteCount}'),
-                    child: const Icon(
-                      Icons.favorite_rounded,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          IconButton(
-            tooltip: 'Logout',
-            icon: const Icon(Icons.logout, color: Colors.redAccent),
-            onPressed: _logout,
-          ),
-        ],
-      ),
-      body: Consumer<CourseState>(
-        builder: (context, state, child) {
-          if (state.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
+    return FutureBuilder<UserProfile?>(
+      future: _profileFuture,
+      builder: (context, profileSnap) {
+        final UserProfile? userProfile = profileSnap.data;
 
-          if (state.error != null) {
-            return ErrorView(
-              message: state.error!,
-              onRetry: state.loadCourses,
-            );
-          }
-
-          if (state.courses.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.menu_book_outlined,
-                      size: 48,
-                      color: Colors.grey,
+        return Scaffold(
+          appBar: AppBar(
+            title: const Row(
+              children: [
+                Icon(
+                  Icons.school_rounded,
+                  color: Color(0xFF4F46E5),
+                ),
+                SizedBox(width: 10),
+                Text(
+                  'Course Explorer',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              if (userProfile != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Chip(
+                    label: Text(
+                      userProfile.role.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF4F46E5),
+                      ),
                     ),
-                    SizedBox(height: 12),
-                    Text(
-                      'Data course belum tersedia',
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                    backgroundColor: const Color(0xFFEEF2FF),
+                    side: BorderSide.none,
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Center(
+                  child: Consumer<CourseState>(
+                    builder: (context, state, child) {
+                      return Badge(
+                        isLabelVisible: state.favoriteCount > 0,
+                        label: Text('${state.favoriteCount}'),
+                        child: const Icon(
+                          Icons.favorite_rounded,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
-            );
-          }
+              IconButton(
+                tooltip: 'Logout',
+                icon: const Icon(Icons.logout, color: Colors.redAccent),
+                onPressed: _logout,
+              ),
+            ],
+          ),
+          body: Consumer<CourseState>(
+            builder: (context, state, child) {
+              if (state.isLoading) {
+                return const Center(
+                  child: CircularProgressIndicator(),
+                );
+              }
 
-          final List<Course> courses = state.courses;
+              if (state.error != null) {
+                return ErrorView(
+                  message: state.error!,
+                  onRetry: state.loadCourses,
+                );
+              }
 
-          final List<Widget> pages = [
-            HomePage(
-              courses: courses,
-              counter: counter,
-              onNavigate: (index) {
-                setState(() => selectedIndex = index);
-              },
-            ),
-            CoursesPage(courses: courses),
-            ProfilePage(courses: courses),
-          ];
+              if (state.courses.isEmpty) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.menu_book_outlined,
+                          size: 48,
+                          color: Colors.grey,
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'Data course belum tersedia',
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
 
-          return Row(
-            children: [
-              if (isWide)
-                NavigationRail(
+              final List<Course> courses = state.courses;
+
+              final List<Widget> pages = [
+                HomePage(
+                  courses: courses,
+                  counter: counter,
+                  userProfile: userProfile,
+                  onNavigate: (index) {
+                    setState(() => selectedIndex = index);
+                  },
+                ),
+                CoursesPage(courses: courses),
+                ProfilePage(
+                  courses: courses,
+                  userProfile: userProfile,
+                ),
+              ];
+
+              return Row(
+                children: [
+                  if (isWide)
+                    NavigationRail(
+                      selectedIndex: selectedIndex,
+                      labelType: NavigationRailLabelType.all,
+                      onDestinationSelected: (index) {
+                        setState(() => selectedIndex = index);
+                      },
+                      destinations: const [
+                        NavigationRailDestination(
+                          icon: Icon(Icons.dashboard_outlined),
+                          selectedIcon: Icon(Icons.dashboard),
+                          label: Text('Dashboard'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.menu_book_outlined),
+                          selectedIcon: Icon(Icons.menu_book),
+                          label: Text('Mata Kuliah'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.person_outline),
+                          selectedIcon: Icon(Icons.person),
+                          label: Text('Profil'),
+                        ),
+                      ],
+                    ),
+                  Expanded(
+                    child: IndexedStack(
+                      index: selectedIndex,
+                      children: pages,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          bottomNavigationBar: isWide
+              ? null
+              : NavigationBar(
                   selectedIndex: selectedIndex,
-                  labelType: NavigationRailLabelType.all,
                   onDestinationSelected: (index) {
                     setState(() => selectedIndex = index);
                   },
                   destinations: const [
-                    NavigationRailDestination(
+                    NavigationDestination(
                       icon: Icon(Icons.dashboard_outlined),
                       selectedIcon: Icon(Icons.dashboard),
-                      label: Text('Dashboard'),
+                      label: 'Dashboard',
                     ),
-                    NavigationRailDestination(
+                    NavigationDestination(
                       icon: Icon(Icons.menu_book_outlined),
                       selectedIcon: Icon(Icons.menu_book),
-                      label: Text('Mata Kuliah'),
+                      label: 'Mata Kuliah',
                     ),
-                    NavigationRailDestination(
+                    NavigationDestination(
                       icon: Icon(Icons.person_outline),
                       selectedIcon: Icon(Icons.person),
-                      label: Text('Profil'),
+                      label: 'Profil',
                     ),
                   ],
                 ),
-              Expanded(
-                child: IndexedStack(
-                  index: selectedIndex,
-                  children: pages,
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-      bottomNavigationBar: isWide
-          ? null
-          : NavigationBar(
-              selectedIndex: selectedIndex,
-              onDestinationSelected: (index) {
-                setState(() => selectedIndex = index);
-              },
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.dashboard_outlined),
-                  selectedIcon: Icon(Icons.dashboard),
-                  label: 'Dashboard',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.menu_book_outlined),
-                  selectedIcon: Icon(Icons.menu_book),
-                  label: 'Mata Kuliah',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.person_outline),
-                  selectedIcon: Icon(Icons.person),
-                  label: 'Profil',
-                ),
-              ],
-            ),
+        );
+      },
     );
   }
 }
@@ -588,12 +647,14 @@ class HomePage extends StatelessWidget {
   final List<Course> courses;
   final ValueNotifier<int> counter;
   final ValueChanged<int> onNavigate;
+  final UserProfile? userProfile;
 
   const HomePage({
     super.key,
     required this.courses,
     required this.counter,
     required this.onNavigate,
+    this.userProfile,
   });
 
   @override
@@ -606,7 +667,13 @@ class HomePage extends StatelessWidget {
       (sum, course) => sum + course.credits,
     );
 
-    final currentUserEmail = Supabase.instance.client.auth.currentUser?.email ?? '-';
+    final String displayName = (userProfile?.name.isNotEmpty ?? false)
+        ? userProfile!.name
+        : studentName;
+    final String currentUserEmail = userProfile?.email ??
+        Supabase.instance.client.auth.currentUser?.email ??
+        '-';
+    final String currentUserRole = userProfile?.role ?? 'seeker';
 
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -640,9 +707,9 @@ class HomePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                studentName,
-                style: TextStyle(
+              Text(
+                displayName,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
                 ),
@@ -658,6 +725,15 @@ class HomePage extends StatelessWidget {
               Text(
                 'Email: $currentUserEmail',
                 style: const TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Role: $currentUserRole',
+                style: const TextStyle(
+                  color: Colors.amberAccent,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 12),
               const Text(
@@ -1608,21 +1684,29 @@ class _CreateCourseDialogState extends State<CreateCourseDialog> {
 
 class ProfilePage extends StatelessWidget {
   final List<Course> courses;
+  final UserProfile? userProfile;
 
   const ProfilePage({
     super.key,
     required this.courses,
+    this.userProfile,
   });
 
   @override
   Widget build(BuildContext context) {
-    final currentUserEmail = Supabase.instance.client.auth.currentUser?.email ?? '-';
+    final String displayName = (userProfile?.name.isNotEmpty ?? false)
+        ? userProfile!.name
+        : studentName;
+    final String currentUserEmail = userProfile?.email ??
+        Supabase.instance.client.auth.currentUser?.email ??
+        '-';
+    final String currentUserRole = userProfile?.role ?? '-';
 
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
         const Text(
-          'Profil Mahasiswa',
+          'Profil Pengguna',
           style: TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.bold,
@@ -1644,18 +1728,16 @@ class ProfilePage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  studentName,
+                Text(
+                  displayName,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
                 const Text('NIM: $studentId'),
-                const SizedBox(height: 4),
-                Text('Email: $currentUserEmail', style: const TextStyle(color: Colors.grey)),
                 const SizedBox(height: 6),
                 const Text(
                   'Pendidikan Teknik Informatika',
@@ -1663,6 +1745,27 @@ class ProfilePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.person_outline),
+                  title: const Text('Nama'),
+                  subtitle: Text(displayName),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.email_outlined),
+                  title: const Text('Email'),
+                  subtitle: Text(currentUserEmail),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.badge_outlined, color: Color(0xFF4F46E5)),
+                  title: const Text('Role'),
+                  subtitle: Text(
+                    currentUserRole,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF4F46E5),
+                    ),
+                  ),
+                ),
                 const ListTile(
                   leading: Icon(Icons.school_outlined),
                   title: Text('Program Studi'),
