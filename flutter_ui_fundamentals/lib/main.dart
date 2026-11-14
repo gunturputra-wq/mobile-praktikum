@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'services/notification_service.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -481,6 +482,16 @@ class MainResponsiveShell extends StatefulWidget {
 
 class _MainResponsiveShellState
     extends State<MainResponsiveShell> {
+  String _permissionStatus = 'notDetermined';
+
+  Future<void> _initNotificationPermission() async {
+    final status = await NotificationService.instance.requestPermission();
+    if (mounted) {
+      setState(() {
+        _permissionStatus = status.name;
+      });
+    }
+  }
   int selectedIndex = 0;
   final ValueNotifier<int> counter = ValueNotifier<int>(0);
   late final Future<UserProfile?> _profileFuture;
@@ -489,6 +500,7 @@ class _MainResponsiveShellState
   void initState() {
     super.initState();
     _profileFuture = ProfileService().getMyProfile();
+    _initNotificationPermission();
   }
 
   @override
@@ -541,6 +553,14 @@ class _MainResponsiveShellState
               ],
             ),
             actions: [
+            TextButton.icon(
+              onPressed: _initNotificationPermission,
+              icon: Icon(
+                _permissionStatus == 'authorized' ? Icons.notifications_active : Icons.notifications_off,
+                color: _permissionStatus == 'authorized' ? Colors.green : Colors.orange,
+              ),
+              label: Text('Izin: $_permissionStatus'),
+            ),
               Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: Chip(

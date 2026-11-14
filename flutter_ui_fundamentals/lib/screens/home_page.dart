@@ -1,3 +1,4 @@
+import '../services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -15,6 +16,16 @@ class ScreenHomePage extends StatefulWidget {
 }
 
 class _ScreenHomePageState extends State<ScreenHomePage> {
+  String _permissionStatus = 'notDetermined';
+
+  Future<void> _initNotificationPermission() async {
+    final status = await NotificationService.instance.requestPermission();
+    if (mounted) {
+      setState(() {
+        _permissionStatus = status.name;
+      });
+    }
+  }
   late final Future<UserProfile?> _profileFuture;
   late Future<List<Course>> _coursesFuture;
 
@@ -22,6 +33,7 @@ class _ScreenHomePageState extends State<ScreenHomePage> {
   void initState() {
     super.initState();
     _profileFuture = ProfileService().getMyProfile();
+    _initNotificationPermission();
     _coursesFuture = CourseSupabaseService().getCourses();
   }
 
@@ -78,6 +90,14 @@ class _ScreenHomePageState extends State<ScreenHomePage> {
           ),
         ),
         actions: [
+            TextButton.icon(
+              onPressed: _initNotificationPermission,
+              icon: Icon(
+                _permissionStatus == 'authorized' ? Icons.notifications_active : Icons.notifications_off,
+                color: _permissionStatus == 'authorized' ? Colors.green : Colors.orange,
+              ),
+              label: Text('Izin: $_permissionStatus'),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Batal'),
@@ -148,6 +168,14 @@ class _ScreenHomePageState extends State<ScreenHomePage> {
           ),
         ),
         actions: [
+            TextButton.icon(
+              onPressed: _initNotificationPermission,
+              icon: Icon(
+                _permissionStatus == 'authorized' ? Icons.notifications_active : Icons.notifications_off,
+                color: _permissionStatus == 'authorized' ? Colors.green : Colors.orange,
+              ),
+              label: Text('Izin: $_permissionStatus'),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Batal'),
@@ -209,6 +237,14 @@ class _ScreenHomePageState extends State<ScreenHomePage> {
             appBar: AppBar(
               title: const Text('Course Explorer'),
               actions: [
+            TextButton.icon(
+              onPressed: _initNotificationPermission,
+              icon: Icon(
+                _permissionStatus == 'authorized' ? Icons.notifications_active : Icons.notifications_off,
+                color: _permissionStatus == 'authorized' ? Colors.green : Colors.orange,
+              ),
+              label: Text('Izin: $_permissionStatus'),
+            ),
                 IconButton(
                   tooltip: 'Logout',
                   icon: const Icon(Icons.logout),
@@ -224,6 +260,14 @@ class _ScreenHomePageState extends State<ScreenHomePage> {
           appBar: AppBar(
             title: Text('Course Explorer (${p.role})'),
             actions: [
+            TextButton.icon(
+              onPressed: _initNotificationPermission,
+              icon: Icon(
+                _permissionStatus == 'authorized' ? Icons.notifications_active : Icons.notifications_off,
+                color: _permissionStatus == 'authorized' ? Colors.green : Colors.orange,
+              ),
+              label: Text('Izin: $_permissionStatus'),
+            ),
               IconButton(
                 tooltip: 'Logout',
                 icon: const Icon(Icons.logout),
