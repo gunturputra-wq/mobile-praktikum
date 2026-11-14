@@ -1,5 +1,6 @@
 class Course {
   final int? id;
+  final String? ownerId;
   final String code;
   final String title;
   final int credits;
@@ -9,6 +10,7 @@ class Course {
 
   const Course({
     this.id,
+    this.ownerId,
     required this.code,
     required this.title,
     required this.credits,
@@ -17,15 +19,13 @@ class Course {
     this.description = '',
   });
 
-  // Mendukung fromJson
   factory Course.fromJson(Map<String, dynamic> json) {
     final dynamic rawId = json['id'];
     final dynamic rawCredits = json['credits'];
 
     return Course(
-      id: rawId == null
-          ? null
-          : int.tryParse(rawId.toString()),
+      id: rawId == null ? null : int.tryParse(rawId.toString()),
+      ownerId: json['owner_id']?.toString(),
       code: json['code']?.toString() ?? '',
       title: json['title']?.toString() ?? 'Mata Kuliah Tanpa Nama',
       credits: rawCredits is num
@@ -37,12 +37,12 @@ class Course {
     );
   }
 
-  // Alias fromMap agar kompatibel jika service memanggil fromMap
   factory Course.fromMap(Map<String, dynamic> map) => Course.fromJson(map);
 
   Map<String, dynamic> toJson() {
     return {
       if (id != null) 'id': id,
+      if (ownerId != null) 'owner_id': ownerId,
       'code': code,
       'title': title,
       'credits': credits,

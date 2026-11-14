@@ -25,6 +25,7 @@ Future<void> main() async {
     publishableKey: 'sb_publishable_S859tk3ygOY25Sz8oMBt6Q_OamfRnOO',
   );
 
+  // Mendengarkan perubahan session (otomatis redirect ke LoginPage jika signedOut)
   Supabase.instance.client.auth.onAuthStateChange.listen((data) {
     debugPrint('Auth event: ${data.event}');
 
@@ -37,6 +38,62 @@ Future<void> main() async {
   });
 
   runApp(const CourseExplorerApp());
+}
+
+/// Fungsi pengujian keamanan RLS (Praktik 6)
+Future<String> runCourseSecurityTest({
+  required int courseIdMilikUserA,
+  required String uuidUserA,
+}) async {
+  final client = Supabase.instance.client;
+  final service = CourseSupabaseService();
+  final buffer = StringBuffer();
+
+  // 1. User B mencoba mengubah (UPDATE) data User A -> harus DENIED
+  try {
+    await service.updateCourse(
+      courseIdMilikUserA,
+      const Course(
+        code: 'HACK999',
+        title: 'DIUBAH USER B',
+        credits: 3,
+        category: 'Test',
+        status: 'active',
+      ),
+    );
+    buffer.writeln('[FAIL] User B berhasil mengubah data User A');
+  } catch (e) {
+    buffer.writeln('[PASS] UPDATE ditolak oleh RLS');
+  }
+
+  // 2. User B mencoba menghapus (DELETE) data User A -> harus DENIED
+  try {
+    await service.deleteCourse(courseIdMilikUserA);
+    buffer.writeln('[FAIL] User B berhasil menghapus data User A');
+  } catch (e) {
+    buffer.writeln('[PASS] DELETE ditolak oleh RLS');
+  }
+
+  // 3. User B mencoba INSERT atas nama User A -> harus ERROR 42501
+  try {
+    await client.from('courses').insert({
+      'owner_id': uuidUserA,
+      'code': 'FAKE101',
+      'title': 'Course Palsu',
+      'credits': 2,
+      'category': 'Security',
+      'status': 'planned',
+    });
+    buffer.writeln('[FAIL] INSERT atas nama user lain berhasil');
+  } on PostgrestException catch (e) {
+    buffer.writeln('[PASS] INSERT ditolak (${e.code}): ${e.message}');
+  } catch (e) {
+    buffer.writeln('[PASS] INSERT ditolak: $e');
+  }
+
+  final hasil = buffer.toString();
+  debugPrint(hasil);
+  return hasil;
 }
 
 class CourseExplorerApp extends StatelessWidget {
@@ -667,6 +724,87 @@ class HomePage extends StatelessWidget {
     this.userProfile,
   });
 
+  /// Dialog untuk menjalankan Security Test Praktik 6 secara interaktif
+  void _openSecurityTestDialog(BuildContext context) {
+    final firstCourse = courses.isNotEmpty ? courses.first : null;
+    final idController = TextEditingController(
+      text: firstCourse?.id?.toString() ?? '',
+    );
+    final uuidController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Security Test RLS (Praktik 6)'),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Masukkan ID Course & UUID milik User A saat login sebagai User B untuk menguji penolakan RLS:',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: idController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'ID Course milik User A',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: uuidController,
+                decoration: const InputDecoration(
+                  labelText: 'UUID User A (dari Supabase Users)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          FilledButton.icon(
+            onPressed: () async {
+              final targetId = int.tryParse(idController.text.trim());
+              final targetUuid = uuidController.text.trim();
+              if (targetId == null || targetUuid.isEmpty) return;
+
+              Navigator.pop(dialogContext);
+              final hasil = await runCourseSecurityTest(
+                courseIdMilikUserA: targetId,
+                uuidUserA: targetUuid,
+              );
+
+              if (!context.mounted) return;
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('Hasil Security Test RLS'),
+                  content: SelectableText(hasil),
+                  actions: [
+                    FilledButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Tutup'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('Jalankan Test'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final int favoriteCount =
@@ -684,6 +822,7 @@ class HomePage extends StatelessWidget {
         Supabase.instance.client.auth.currentUser?.email ??
         '-';
     final String currentUserRole = userProfile?.role ?? 'seeker';
+    final String currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '-';
 
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -745,6 +884,11 @@ class HomePage extends StatelessWidget {
                   fontSize: 13,
                 ),
               ),
+              const SizedBox(height: 4),
+              SelectableText(
+                'UID: $currentUserId',
+                style: const TextStyle(color: Colors.white60, fontSize: 11),
+              ),
               const SizedBox(height: 12),
               const Text(
                 'Pendidikan Teknik Informatika',
@@ -802,7 +946,40 @@ class HomePage extends StatelessWidget {
           },
         ),
         const SizedBox(height: 24),
-        // Menu khusus Admin (contoh perbedaan menu per role)
+        // Panel pengujian keamanan RLS untuk Praktik 6
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                const Icon(Icons.security_rounded, color: Color(0xFF4F46E5), size: 32),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Security Testing RLS',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Uji penolakan UPDATE, DELETE, dan INSERT lintas akun.',
+                        style: TextStyle(fontSize: 13, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: () => _openSecurityTestDialog(context),
+                  icon: const Icon(Icons.bug_report_outlined),
+                  label: const Text('Uji RLS'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
         if (userProfile?.isAdmin ?? false) ...[
           Card(
             color: const Color(0xFFEEF2FF),
@@ -926,9 +1103,13 @@ class _CoursesPageState extends State<CoursesPage> {
   String searchQuery = '';
 
   Future<void> _showCreateCourseDialog() async {
+    final courseState = context.read<CourseState>();
     final created = await showDialog<bool>(
       context: context,
-      builder: (_) => const CreateCourseDialog(),
+      builder: (_) => ChangeNotifierProvider.value(
+        value: courseState,
+        child: const CreateCourseDialog(),
+      ),
     );
 
     if (!mounted || created != true) return;
@@ -1053,9 +1234,13 @@ class _CourseCardState extends State<CourseCard> {
   bool expanded = false;
 
   Future<void> _editCourse() async {
+    final courseState = context.read<CourseState>();
     final bool? updated = await showDialog<bool>(
       context: context,
-      builder: (_) => EditCourseDialog(course: widget.course),
+      builder: (_) => ChangeNotifierProvider.value(
+        value: courseState,
+        child: EditCourseDialog(course: widget.course),
+      ),
     );
 
     if (!mounted || updated != true) return;
@@ -1170,7 +1355,7 @@ class _CourseCardState extends State<CourseCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        course.code,
+                        '${course.code} (ID: ${course.id ?? '-'})',
                         style: const TextStyle(
                           color: Color(0xFF4F46E5),
                           fontWeight: FontWeight.bold,
@@ -1212,62 +1397,67 @@ class _CourseCardState extends State<CourseCard> {
               ],
             ),
             const SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              alignment: WrapAlignment.spaceBetween,
               children: [
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFDCFCE7),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Text(
-                      course.status,
-                      style: const TextStyle(
-                        color: Color(0xFF166534),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Text(
+                    course.status,
+                    style: const TextStyle(
+                      color: Color(0xFF166534),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                const Spacer(),
-                // Tombol Edit dan Delete hanya muncul untuk role 'owner' dan 'admin'
-                RoleGuard(
-                  role: widget.userRole,
-                  allowed: const ['owner', 'admin'],
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextButton.icon(
-                        onPressed: _editCourse,
-                        icon: const Icon(Icons.edit_outlined),
-                        label: const Text('Edit'),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    RoleGuard(
+                      role: widget.userRole,
+                      allowed: const ['owner', 'admin'],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextButton.icon(
+                            onPressed: _editCourse,
+                            icon: const Icon(Icons.edit_outlined, size: 18),
+                            label: const Text('Edit'),
+                          ),
+                          TextButton.icon(
+                            onPressed: _deleteCourse,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
+                            icon: const Icon(Icons.delete_outline, size: 18),
+                            label: const Text('Delete'),
+                          ),
+                        ],
                       ),
-                      TextButton.icon(
-                        onPressed: _deleteCourse,
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.red,
-                        ),
-                        icon: const Icon(Icons.delete_outline),
-                        label: const Text('Delete'),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() => expanded = !expanded);
+                      },
+                      icon: Icon(
+                        expanded
+                            ? Icons.expand_less
+                            : Icons.expand_more,
                       ),
-                    ],
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () {
-                    setState(() => expanded = !expanded);
-                  },
-                  icon: Icon(
-                    expanded
-                        ? Icons.expand_less
-                        : Icons.expand_more,
-                  ),
-                  label: Text(expanded ? 'Tutup' : 'Detail'),
+                      label: Text(expanded ? 'Tutup' : 'Detail'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1751,6 +1941,7 @@ class ProfilePage extends StatelessWidget {
         Supabase.instance.client.auth.currentUser?.email ??
         '-';
     final String currentUserRole = userProfile?.role ?? '-';
+    final String currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '-';
 
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -1815,6 +2006,11 @@ class ProfilePage extends StatelessWidget {
                       color: Color(0xFF4F46E5),
                     ),
                   ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.fingerprint),
+                  title: const Text('User ID (UUID)'),
+                  subtitle: SelectableText(currentUserId),
                 ),
                 const ListTile(
                   leading: Icon(Icons.school_outlined),
@@ -1946,3 +2142,4 @@ class EmptyCoursesCard extends StatelessWidget {
     );
   }
 }
+
