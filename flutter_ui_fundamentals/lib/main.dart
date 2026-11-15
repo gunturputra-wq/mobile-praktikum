@@ -1,3 +1,5 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -20,6 +22,7 @@ final GlobalKey<ScaffoldMessengerState> messengerKey = GlobalKey<ScaffoldMesseng
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await Supabase.initialize(
     url: 'https://genbvfarqheeshjikngk.supabase.co',
@@ -491,6 +494,21 @@ class _MainResponsiveShellState
         _permissionStatus = status.name;
       });
     }
+    final token = await NotificationService.instance.getToken();
+    if (token != null) {
+      try {
+        await NotificationService.instance.saveTokenToSupabase(token);
+      } catch (e) {
+        debugPrint('Supabase saveToken skipped: $e');
+      }
+    }
+    NotificationService.instance.listenTokenRefresh((newToken) async {
+      try {
+        await NotificationService.instance.saveTokenToSupabase(newToken);
+      } catch (e) {
+        debugPrint('Supabase saveToken refresh skipped: $e');
+      }
+    });
   }
   int selectedIndex = 0;
   final ValueNotifier<int> counter = ValueNotifier<int>(0);
