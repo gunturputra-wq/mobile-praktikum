@@ -1,5 +1,5 @@
-importScripts("https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js");
-importScripts("https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/11.0.2/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/11.0.2/firebase-messaging-compat.js");
 
 firebase.initializeApp({
   apiKey: "AIzaSyBdRVZ0_Yx3ItWpiToFXgM2UeshQbqwvII",
@@ -11,3 +11,14 @@ firebase.initializeApp({
 });
 
 const messaging = firebase.messaging();
+
+messaging.onBackgroundMessage(function(payload) {
+  console.log('[BACKGROUND SW] Received background message ', payload);
+  const title = payload.notification?.title || payload.data?.title || 'KosFinder';
+  const options = {
+    body: payload.notification?.body || payload.data?.body || 'Kos baru tersedia di sekitar kampus.',
+    icon: '/icons/Icon-192.png',
+    requireInteraction: true
+  };
+  return self.registration.showNotification(title, options);
+});

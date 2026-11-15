@@ -1,9 +1,23 @@
 import 'dart:async';
 import 'dart:js_interop';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:web/web.dart' as web;
+
+import '../firebase_options.dart';
+import '../main.dart';
+
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  debugPrint('[BACKGROUND] ${message.notification?.title}');
+  debugPrint('[BACKGROUND] ${message.notification?.body}');
+}
 
 class NotificationService {
   NotificationService._();
@@ -51,7 +65,7 @@ class NotificationService {
                 ? 'BDNTe7cuWQojg-Me9y6CdbxKjVtYfHUUSCkhdHrorUYmtBxvAl4MnFRnkNO0Pr0Vb_X1HFknpJVicYx3snG9LiY'
                 : null,
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
       debugPrint('FCM Token: $token');
       return token;
     } catch (e) {
@@ -80,6 +94,48 @@ class NotificationService {
       'user_id': user.id,
       'platform': kIsWeb ? 'web' : defaultTargetPlatform.name,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
+  Future<void> init() async {
+    await requestPermission();
+
+    final token = await getToken();
+    if (token != null) {
+      try {
+        await saveTokenToSupabase(token);
+      } catch (e) {
+        debugPrint('Supabase saveToken skipped: $e');
+      }
+    }
+    listenTokenRefresh((newToken) async {
+      try {
+        await saveTokenToSupabase(newToken);
+      } catch (e) {
+        debugPrint('Supabase saveToken refresh skipped: $e');
+      }
+    });
+
+    if (!kIsWeb) {
+      await _messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    }
+
+    // FOREGROUND: aplikasi sedang terbuka
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      debugPrint('[FOREGROUND] Notification received');
+      debugPrint('title: ${message.notification?.title}');
+      debugPrint('body : ${message.notification?.body}');
+      debugPrint('data : ${message.data}');
+
+      final title = message.notification?.title ?? 'Notifikasi';
+      final body = message.notification?.body ?? '';
+      messengerKey.currentState?.showSnackBar(
+        SnackBar(content: Text('$title\n$body')),
+      );
     });
   }
 }
